@@ -39,120 +39,99 @@ void readFirebase(){
   pathMonitoring = String (path) + "/"+ String(kebun_id) +"/monitoring";
   pathNutrient = String (path) + "/"+ String(kebun_id) +"/nutrient";
   pathControlling = String (path) + "/"+ String(kebun_id) +"/controlling";
-  // pathPompa1 =  String(pathControlling) + "/pompa_1/state";
-  // pathPompa2 =  String(pathControlling) + "/pompa_2/state";
-  // pathPompa3 =  String(pathControlling) + "/pompa_3/state";
-  // pathExh =  String(pathControlling) + "/exhaust_fan_1/state";
-  
 }
 
 void get_status() {
-  // Firebase.getJSON(fbdo, pathControlling);
-  // if (fbdo.dataType() == "json") {
-  //     //Serial.println(fbdo.jsonString());  // Debug: Print entire JSON response
-  //     FirebaseJson &json = fbdo.jsonObject();
-  //     FirebaseJsonData jsonData; 
+    fetchControllingData();
+    updateDeviceStates();
 
-  //     if (json.get(jsonData, "pompa_1/state")) {
-  //         statePompa1 = jsonData.intValue; // Convert and store as int
-  //         Serial.printf("Pompa 1: %d\n", statePompa1);
-  //     } else {
-  //         Serial.println("Failed to get pompa_1/state");
-  //     }
-
-  //     if (json.get(jsonData, "pompa_2/state")) {
-  //         statePompa2 = jsonData.intValue; // Convert and store as int
-  //         Serial.printf("Pompa 2: %d\n", statePompa2);
-  //     } else {
-  //         Serial.println("Failed to get pompa_2/state");
-  //     }
-
-  //     if (json.get(jsonData, "pompa_3/state")) {
-  //         statePompa3 = jsonData.intValue; // Convert and store as int
-  //         Serial.printf("Pompa 3: %d\n", statePompa3);
-  //     } else {
-  //         Serial.println("Failed to get pompa_3/state");
-  //     }
-
-  //     if (json.get(jsonData, "exhaust_fan_1/state")) {
-  //         stateExh = jsonData.intValue; // Convert and store as int
-  //         Serial.printf("Exhaust: %d\n", stateExh);
-  //     } else {
-  //         Serial.println("Failed to get exhaust_1/state");
-  //     }
-  // } else {
-  //     Serial.println("Failed to retrieve JSON or data type is not JSON.");
-  //     Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
-  // }
-
-  Firebase.getJSON(fbdo, pathControlling);
-
-    if (fbdo.dataType() == "json") {
-        FirebaseJson &json = fbdo.jsonObject();
-        FirebaseJsonData jsonData;
-
-        for (auto &device : devices) {
-            if (json.get(jsonData, device.path)) {
-                device.firebase_state = jsonData.intValue; // Update the state directly in the device
-                Serial.printf("%s: %d\n", device.path, device.firebase_state);
-            } else {
-                Serial.printf("Failed to get %s\n", device.path);
-            }
-        }
-    } else {
-        Serial.println("Failed to retrieve JSON or data type is not JSON.");
-        Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
-    }
-
-    updateControlStates();
-
-  // if (LED1 != statePompa2) {
-  //     controlDevice(GPIO8, statePompa1, 0x00001, LED1, ui_ButtonONOFF1);
-  // }
-  // if (LED2 != statePompa2) {
-  //     controlDevice(GPIO7, statePompa2, 0x00002, LED2, ui_ButtonONOFF2);
-  // }
-  // if (LED3 != statePompa3) {
-  //     controlDevice(GPIO6, statePompa3, 0x00003, LED3, ui_ButtonONOFF3);
-  // }
-  // if (LED4 != stateExh) {
-  //     controlDevice(GPIO5, statePompa3, 0x00004, LED4, ui_ButtonONOFF4);
-  // }
-
-  // Read each nutrient data field from Firebase
-    // if (Firebase.getFloat(fbdo, pathNutrient + "/target_ec", &target_ec)) {
-    //     Serial.printf("Target EC: %.2f\n", target_ec);
-    // } else {
-    //     Serial.println("Failed to read target_ec: " + String(fbdo.errorReason()));
-    // }
-
-    // if (Firebase.getFloat(fbdo, pathNutrient + "/calc_A", &calc_A)) {
-    //     Serial.printf("Calc A: %.2f\n", calc_A);
-    // } else {
-    //     Serial.println("Failed to read calc_A: " + String(fbdo.errorReason()));
-    // }
-
-    // if (Firebase.getFloat(fbdo, pathNutrient + "/calc_B", &calc_B)) {
-    //     Serial.printf("Calc B: %.2f\n", calc_B);
-    // } else {
-    //     Serial.println("Failed to read calc_B: " + String(fbdo.errorReason()));
-    // }
-
-    // if (Firebase.getString(fbdo, pathNutrient + "/status", &status)) {
-    //     Serial.printf("Status: %s\n", status.c_str());
-    // } else {
-    //     Serial.println("Failed to read status: " + String(fbdo.errorReason()));
-    // }
-
-    // if (Firebase.getString(fbdo, pathNutrient + "/time", &times)) {
-    //     Serial.printf("Time: %.2f\n", times);
-    // } else {
-    //     Serial.println("Failed to read time: " + String(fbdo.errorReason()));
-    // }
- 
+    fetchNutrientData();
 }
 
-void updateControlStates() {
+void fetchControllingData(){
+  Firebase.getJSON(fbdo, pathControlling);
+
+  if (fbdo.dataType() == "json") {
+      FirebaseJson &json = fbdo.jsonObject();
+      FirebaseJsonData jsonData;
+
+      for (auto &device : devices) {
+          if (json.get(jsonData, device.path)) {
+              device.firebase_state = jsonData.intValue; // Update the state directly in the device
+              Serial.printf("%s: %d\n", device.path, device.firebase_state);
+          } else {
+              Serial.printf("Failed to get %s\n", device.path);
+          }
+      }
+  } else {
+      Serial.println("Failed to retrieve JSON or data type is not JSON.");
+      Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
+  }
+}
+
+void fetchNutrientData() {
+  if (Firebase.getJSON(fbdo, pathNutrient)) {
+    if (fbdo.dataType() == "json") {
+          FirebaseJson &json = fbdo.jsonObject();
+          FirebaseJsonData jsonData;
+
+          if (json.get(jsonData, "target_ec") && jsonData.type == "float") {
+              nutrient.target_ec = jsonData.floatValue;
+          }
+
+          if (json.get(jsonData, "calc_A") && jsonData.type == "float") {
+              nutrient.calc_A = jsonData.floatValue;
+          }
+
+          if (json.get(jsonData, "calc_B") && jsonData.type == "float") {
+              nutrient.calc_B = jsonData.floatValue;
+          }
+
+          if (json.get(jsonData, "status") && jsonData.type == "string") {
+              nutrient.status = jsonData.stringValue;
+          }
+
+          if (json.get(jsonData, "times") && jsonData.type == "float") {
+              nutrient.times = jsonData.floatValue;
+          }
+
+          Serial.printf("Target EC: %.2f, Calc A: %.2f, Calc B: %.2f, Status: %s, Time: %.2f\n",
+                        nutrient.target_ec, nutrient.calc_A, nutrient.calc_B, 
+                        nutrient.status.c_str(), nutrient.times);
+      } else {
+          Serial.println("Data is not JSON.");
+      }
+  } else {
+      Serial.println("Failed to fetch JSON: " + fbdo.errorReason());
+  }
+}
+
+bool readGPIOState(uint8_t gpio) {
+    uint8_t inputState = readInput(); // Read the current state of all GPIOs
+    return (inputState & gpio) != 0;  // Check if the specified GPIO bit is set
+}
+
+void startNutrient(){
+  if (ec < nutrient.target_ec) {
+      Serial.println("EC is below target, starting automation...");
+      updateNutrientState("on progress");
+      OnOffDevice(true, devices[2]);
+  } else {
+      Serial.println("EC is already above the target.");
+      updateNutrientState("stop");
+  }
+}
+
+void updateNutrientState(String state)
+{
+    if (Firebase.setString(fbdo, pathNutrient + "/status", state)) {
+        Serial.println("Firebase updated successfully!");
+    } else {
+        Serial.println("Failed to update Firebase: " + String(fbdo.errorReason()));
+    }
+}
+
+void updateDeviceStates() {
     for (auto &device : devices) {
         if (device.firebase_state != device.device_state) { 
             controlDevice(device);

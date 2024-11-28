@@ -66,15 +66,25 @@ DeviceState devices[] = {
 >>>>>>> f1b4f93 (clean code + rebase add gitignore)
 
 String uid, path, pathMonitoring, pathNutrient, pathControlling;
-
-float temperatureC, RH, ph;
-int valSoil, ec;
+float temperatureC, RH, valSoil;
+int  ph, ec;
+String nutrient_state= "idle";
 
 struct SensorData {
   float ph;
   int ec;
   float temperature;
 };
+
+struct Nutrient {
+    float target_ec = 0.0f;
+    float calc_A = 0.0f;
+    float calc_B = 0.0f;
+    String status = "";
+    float times = 0.0f;
+};
+
+Nutrient nutrient;
 
 void initWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -205,6 +215,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 #endif
 
 uint8_t result;
+
 void OnOffDevice(bool is_on, DeviceState &device) {
     if (is_on) {
         Serial.printf("%s is ON\n", device.path);
@@ -214,9 +225,9 @@ void OnOffDevice(bool is_on, DeviceState &device) {
         device.device_state = 0;
     }
     updateFirebaseState(device.path, device.device_state);
-
     writeOutput(device.pin, device.device_state);
     result = node.writeSingleCoil(device.coil, device.device_state);
+
 }
 
 void OnOffPompa1(lv_event_t *e) {
@@ -273,7 +284,6 @@ void startAutoNutrient(lv_event_t * e)
 
 void setup()
 {
-  
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(1000);
@@ -281,7 +291,6 @@ void setup()
   node.begin(1, Serial1);                          
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
-
   // Perform Calibration
   // calibratepH();
   // calibrateEc();
@@ -348,6 +357,9 @@ void setup()
   setPinMode(GPIO8, OUTPUT);
 }
 unsigned char byteRequest[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; 
+unsigned long startTime = 0; // To track time
+bool isWaiting = false;      // To manage the timing state
+
 void loop() {
     start_calibratation();
     if(!Firebase.ready()){
@@ -380,6 +392,36 @@ void loop() {
     dtostrf(RH, 6, 2, tempStr2);
     dtostrf(ec, 6, 0, tempStr3); 
     dtostrf(ph, 6, 2, tempStr4); 
+
+    if (nutrient.status == "start") {
+        startNutrient();
+    } else if (nutrient.status == "on progress"){
+      bool gpio5State = readGPIOState(GPIO5);
+      if (!gpio5State) {
+          Serial.println("GPIO5 is OFF. Starting nutrient process...");
+          if (!isWaiting) {
+              OnOffDevice(true, devices[3]); // Start device 3
+              startTime = millis();         // Record the start time
+              isWaiting = true;            
+          }
+
+          if (ec >= nutrient.target_ec) {
+            Serial.println("EC target reached. Stopping...");
+            OnOffDevice(false, devices[3]); // Turn OFF device 3
+            isWaiting = false;              // Reset timing state
+            updateNutrientState("done");
+          }
+
+          if (isWaiting && millis() - startTime >= nutrient.times * 1000) {
+              OnOffDevice(false, devices[3]); // Stop device 3 after the time
+              isWaiting = false;              // Reset waiting state
+              updateNutrientState("done");
+          }
+      } else if(nutrient.status == "stop"){
+          OnOffDevice(false, devices[2]);
+          OnOffDevice(false, devices[3]);
+      }
+    }
 
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 
