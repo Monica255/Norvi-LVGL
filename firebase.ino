@@ -1,4 +1,10 @@
+
 #include "credentials.h"
+
+#define sensorFrameSize  19
+#define sensorWaitingTime 1000
+
+String kebun_id = "kebun1";
 
 FirebaseData fbdo;
 FirebaseJson json;
@@ -29,70 +35,90 @@ void initFirebase() {
 
 void readFirebase(){
   Serial.println("Getting User UID");
-
   path = "/smart_farming/" + String(uid) + "/realtime_kebun";
-  pathPompa1 =  String(path) + "/kebun1/controlling/pompa_1/state";
-  pathPompa2 =  String(path) + "/kebun1/controlling/pompa_2/state";
-  pathPompa3 =  String(path) + "/kebun1/controlling/pompa_3/state";
-  pathExh =  String(path) + "/kebun1/controlling/exhaust_fan_1/state";
-  pathMonitoring = String (path) + "/kebun1/monitoring";
-  pathNutrient = String (path) + "/kebun1/nutrient";
-  pathControlling = String (path) + "/kebun1/controlling";
+  pathMonitoring = String (path) + "/"+ String(kebun_id) +"/monitoring";
+  pathNutrient = String (path) + "/"+ String(kebun_id) +"/nutrient";
+  pathControlling = String (path) + "/"+ String(kebun_id) +"/controlling";
+  // pathPompa1 =  String(pathControlling) + "/pompa_1/state";
+  // pathPompa2 =  String(pathControlling) + "/pompa_2/state";
+  // pathPompa3 =  String(pathControlling) + "/pompa_3/state";
+  // pathExh =  String(pathControlling) + "/exhaust_fan_1/state";
+  
 }
 
 void get_status() {
+  // Firebase.getJSON(fbdo, pathControlling);
+  // if (fbdo.dataType() == "json") {
+  //     //Serial.println(fbdo.jsonString());  // Debug: Print entire JSON response
+  //     FirebaseJson &json = fbdo.jsonObject();
+  //     FirebaseJsonData jsonData; 
+
+  //     if (json.get(jsonData, "pompa_1/state")) {
+  //         statePompa1 = jsonData.intValue; // Convert and store as int
+  //         Serial.printf("Pompa 1: %d\n", statePompa1);
+  //     } else {
+  //         Serial.println("Failed to get pompa_1/state");
+  //     }
+
+  //     if (json.get(jsonData, "pompa_2/state")) {
+  //         statePompa2 = jsonData.intValue; // Convert and store as int
+  //         Serial.printf("Pompa 2: %d\n", statePompa2);
+  //     } else {
+  //         Serial.println("Failed to get pompa_2/state");
+  //     }
+
+  //     if (json.get(jsonData, "pompa_3/state")) {
+  //         statePompa3 = jsonData.intValue; // Convert and store as int
+  //         Serial.printf("Pompa 3: %d\n", statePompa3);
+  //     } else {
+  //         Serial.println("Failed to get pompa_3/state");
+  //     }
+
+  //     if (json.get(jsonData, "exhaust_fan_1/state")) {
+  //         stateExh = jsonData.intValue; // Convert and store as int
+  //         Serial.printf("Exhaust: %d\n", stateExh);
+  //     } else {
+  //         Serial.println("Failed to get exhaust_1/state");
+  //     }
+  // } else {
+  //     Serial.println("Failed to retrieve JSON or data type is not JSON.");
+  //     Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
+  // }
 
   Firebase.getJSON(fbdo, pathControlling);
-  if (fbdo.dataType() == "json") {
-      //Serial.println(fbdo.jsonString());  // Debug: Print entire JSON response
-      FirebaseJson &json = fbdo.jsonObject();
-      FirebaseJsonData jsonData; 
 
-      if (json.get(jsonData, "pompa_1/state")) {
-          statePompa1 = jsonData.intValue; // Convert and store as int
-          Serial.printf("Pompa 1: %d\n", statePompa1);
-      } else {
-          Serial.println("Failed to get pompa_1/state");
-      }
+    if (fbdo.dataType() == "json") {
+        FirebaseJson &json = fbdo.jsonObject();
+        FirebaseJsonData jsonData;
 
-      if (json.get(jsonData, "pompa_2/state")) {
-          statePompa2 = jsonData.intValue; // Convert and store as int
-          Serial.printf("Pompa 2: %d\n", statePompa2);
-      } else {
-          Serial.println("Failed to get pompa_2/state");
-      }
+        for (auto &device : devices) {
+            if (json.get(jsonData, device.path)) {
+                device.old_state = device.state;  // Store the current state as the old state before updating
+                device.state = jsonData.intValue; // Update the state directly in the device
+                Serial.printf("%s: %d\n", device.path, device.state);
+            } else {
+                Serial.printf("Failed to get %s\n", device.path);
+            }
+        }
+    } else {
+        Serial.println("Failed to retrieve JSON or data type is not JSON.");
+        Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
+    }
 
-      if (json.get(jsonData, "pompa_3/state")) {
-          statePompa3 = jsonData.intValue; // Convert and store as int
-          Serial.printf("Pompa 3: %d\n", statePompa3);
-      } else {
-          Serial.println("Failed to get pompa_3/state");
-      }
+    updateControlStates();
 
-      if (json.get(jsonData, "exhaust_fan_1/state")) {
-          stateExh = jsonData.intValue; // Convert and store as int
-          Serial.printf("Exhaust: %d\n", stateExh);
-      } else {
-          Serial.println("Failed to get exhaust_1/state");
-      }
-  } else {
-      Serial.println("Failed to retrieve JSON or data type is not JSON.");
-      Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
-  }
-
-
-  if (LED1 != statePompa2) {
-      controlPompa1(statePompa1);
-  }
-  if (LED2 != statePompa2) {
-      controlPompa2(statePompa2);
-  }
-  if (LED3 != statePompa3) {
-      controlPompa3(statePompa3);
-  }
-  if (LED4 != stateExh) {
-      controlExhaust(stateExh);
-  }
+  // if (LED1 != statePompa2) {
+  //     controlDevice(GPIO8, statePompa1, 0x00001, LED1, ui_ButtonONOFF1);
+  // }
+  // if (LED2 != statePompa2) {
+  //     controlDevice(GPIO7, statePompa2, 0x00002, LED2, ui_ButtonONOFF2);
+  // }
+  // if (LED3 != statePompa3) {
+  //     controlDevice(GPIO6, statePompa3, 0x00003, LED3, ui_ButtonONOFF3);
+  // }
+  // if (LED4 != stateExh) {
+  //     controlDevice(GPIO5, statePompa3, 0x00004, LED4, ui_ButtonONOFF4);
+  // }
 
   // Read each nutrient data field from Firebase
     // if (Firebase.getFloat(fbdo, pathNutrient + "/target_ec", &target_ec)) {
@@ -125,6 +151,14 @@ void get_status() {
     //     Serial.println("Failed to read time: " + String(fbdo.errorReason()));
     // }
  
+}
+
+void updateControlStates() {
+    for (auto &device : devices) {
+        if (device.state != device.old_state) { 
+            controlDevice(device.pin, device.state, device.coil, device.old_state, device.uiButton);
+        }
+    }
 }
 
 void updateFirebaseState(const String &path, int state)

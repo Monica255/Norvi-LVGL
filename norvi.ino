@@ -3,8 +3,11 @@
 #include <Adafruit_ADS1X15.h>
 #include <ModbusMaster.h>
 
-#define USE_UI//if you want to use the ui export from Squareline, please do not annotate this line.
+ModbusMaster node;
 
+
+#define Display_50
+#define USE_UI
 #define SDA 19
 #define SCL 20
 
@@ -34,31 +37,38 @@ Adafruit_ADS1115 ads2;
 #define GPIO7 0x40
 #define GPIO8 0x80
 
-#define GPIO1 0x01
-#define GPIO2 0x02
-#define GPIO3 0x04
-#define GPIO4 0x08
-
 #define NUM_INPUT_PINS 4
 
-#define sensorFrameSize  19
-#define sensorWaitingTime 1000
-
-// Library Firebase ESP32
 #include <WiFi.h>
 #include <FirebaseESP32.h>
-
-// Library Sensor DHT
 #include <DHT.h>
-
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-
 #include "credentials.h"
 
-String uid, path, pathPompa1, pathPompa2, pathPompa3, pathExh, pathMonitoring, pathNutrient, pathControlling;
+struct DeviceState {
+    int pin;              // GPIO pin
+    int state;            // Current device state
+    int old_state;        // Previous device state (replaces LED variables)
+    uint16_t coil;        // Coil address for Modbus communication
+    lv_obj_t *uiButton;   // UI button to control the device
+    const char *path;     // Firebase JSON path
+};
+
+// Devices array
+DeviceState devices[] = {
+    {GPIO8, 0, 0, 0x00001, ui_ButtonONOFF1, "pompa_1/state"},
+    {GPIO7, 0, 0, 0x00002, ui_ButtonONOFF2, "pompa_2/state"},
+    {GPIO6, 0, 0, 0x00003, ui_ButtonONOFF3, "pompa_3/state"},
+    {GPIO5, 0, 0, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"}
+};
+>>>>>>> f1b4f93 (clean code + rebase add gitignore)
+
+String uid, path, pathMonitoring, pathNutrient, pathControlling;
+String pathPompa1, pathPompa2, pathPompa3, pathExh;
 int statePompa1, statePompa2, statePompa3, stateExh;
+int LED1, LED2, LED3, LED4;
 
 float temperatureC, RH, ph;
 int valSoil, ec;
@@ -102,7 +112,6 @@ void writeOutput(uint8_t pin, uint8_t value) {
 uint8_t readInput() {
    return readRegister(PCA9538_INPUT_REG);
 }
-
 uint8_t readRegister(uint8_t reg) {
   Wire.beginTransmission(PCA9538_ADDR);
   Wire.write(reg);
@@ -110,21 +119,12 @@ uint8_t readRegister(uint8_t reg) {
   Wire.requestFrom(PCA9538_ADDR, 1);
   return Wire.read();
 }
-
 void writeRegister(uint8_t reg, uint8_t value) {
   Wire.beginTransmission(PCA9538_ADDR);
   Wire.write(reg);
   Wire.write(value);
   Wire.endTransmission();
 }
-
-#define Display_50
-
-ModbusMaster node;
-int LED1;
-int LED2;
-int LED3;
-int LED4;
 
 void preTransmission()
 {
@@ -139,7 +139,6 @@ void postTransmission()
 #if defined(DISPLAY_DEV_KIT)
 Arduino_GFX *lcd = create_default_Arduino_GFX();
 #else
-
 Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
     GFX_NOT_DEFINED /* CS */, GFX_NOT_DEFINED /* SCK */, GFX_NOT_DEFINED /* SDA */,
     4 /* DE */, 5 /* VSYNC */, 6 /* HSYNC */, 7 /* PCLK */,
@@ -152,7 +151,6 @@ Arduino_RPi_DPI_RGBPanel *lcd = new Arduino_RPi_DPI_RGBPanel(
     800 /* width */, 0 /* hsync_polarity */, 210 /* hsync_front_porch */, 30 /* hsync_pulse_width */, 16 /* hsync_back_porch */,
     480 /* height */, 0 /* vsync_polarity */, 22 /* vsync_front_porch */, 13 /* vsync_pulse_width */, 10 /* vsync_back_porch */,
     1 /* pclk_active_neg */, 16000000 /* prefer_speed */, true /* auto_flush */);
-  
 #endif
 
 #include "touch.h"
@@ -166,7 +164,6 @@ static lv_color_t disp_draw_buf[800 * 480 / 10];      //5,7inch: lv_color_t disp
 //static lv_color_t disp_draw_buf;
 static lv_disp_drv_t disp_drv;
 
-/* Display flushing */
 void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
 {
   uint32_t w = (area->x2 - area->x1 + 1);
@@ -177,7 +174,6 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 #else
   lcd->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
 #endif
-
   lv_disp_flush_ready(disp);
 }
 
@@ -213,133 +209,60 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 
 uint8_t result;
 
-void OnOffPompa1(lv_event_t * e)
-{
-    lv_obj_t *button = lv_event_get_target(e);
-    bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
-
+// A generalized function to handle on/off events for all devices
+void OnOffDevice(bool is_on, DeviceState &device) {
     if (is_on) {
-        Serial.println("Pompa 1 is ON\n");
-        LED1=1;
-        updateFirebaseState(pathPompa1,1);
+        Serial.printf("%s is ON\n", device.path);
+        device.old_state = 1;
     } else {
-        Serial.println("Pompa 1 is OFF\n");
-        LED1=0;
-        updateFirebaseState(pathPompa1,0);
+        Serial.printf("%s is OFF\n", device.path);
+        device.old_state = 0;
     }
-  writeOutput(GPIO8, LED1);
-  result = node.writeSingleCoil(0x00001, LED1);
+    updateFirebaseState(device.path, device.old_state);
+
+    writeOutput(device.pin, device.old_state);
+    result = node.writeSingleCoil(device.coil, device.old_state);
+
+    // if (device.old_state) {
+    //     lv_obj_add_state(device.uiButton, LV_STATE_CHECKED); // Turn the button ON
+    // } else {
+    //     lv_obj_clear_state(device.uiButton, LV_STATE_CHECKED); // Turn the button OFF
+    // }
 }
 
-void controlPompa1(int state) {
-    writeOutput(GPIO8, state);
-    LED1 = state; 
-    result = node.writeSingleCoil(0x00001, LED1);
-    Serial.print("Controlling pompa 1: ");
+void OnOffPompa1(lv_event_t *e) {
+    bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    OnOffDevice(is_on, devices[0]);
+}
+
+void OnOffPompa2(lv_event_t *e) {
+    bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    OnOffDevice(is_on, devices[1]);
+}
+
+void OnOffPompa3(lv_event_t *e) {
+    bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    OnOffDevice(is_on, devices[2]);
+}
+
+void OnOffExh(lv_event_t *e) {
+    bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    OnOffDevice(is_on, devices[3]);
+}
+
+
+void controlDevice(int gpioPin, int state, uint16_t modbusAddress, int &ledState, lv_obj_t *uiButton) {
+    writeOutput(gpioPin, state);
+    ledState = state; 
+    result = node.writeSingleCoil(modbusAddress, ledState);
+    Serial.print("Controlling device on GPIO ");
+    Serial.print(gpioPin);
+    Serial.print(": ");
     Serial.println(state);
-
     if (state) {
-        lv_obj_add_state(ui_ButtonONOFF1, LV_STATE_CHECKED); // Turn the button ON
+        lv_obj_add_state(uiButton, LV_STATE_CHECKED); 
     } else {
-        lv_obj_clear_state(ui_ButtonONOFF1, LV_STATE_CHECKED); // Turn the button OFF
-    }
-}
-
-
-
-void OnOffPompa2(lv_event_t * e)
-{
-	lv_obj_t *button = lv_event_get_target(e);
-    bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
-
-    if (is_on) {
-        Serial.println("Pompa 2 is ON\n");
-        LED2=1;
-        updateFirebaseState(pathPompa2,1);
-    } else {
-        Serial.println("Pompa 2 is OFF\n");
-        LED2=0;
-        updateFirebaseState(pathPompa2,0);
-    }
-  writeOutput(GPIO7, LED2);
-  result = node.writeSingleCoil(0x00002, LED2);
-}
-
-void controlPompa2(int state) {
-    writeOutput(GPIO7, state);
-    LED2 = state; 
-    result = node.writeSingleCoil(0x00002, LED2);
-    Serial.print("Controlling pompa 2: ");
-    Serial.println(state);
-
-    if (state) {
-        lv_obj_add_state(ui_ButtonONOFF2, LV_STATE_CHECKED); // Turn the button ON
-    } else {
-        lv_obj_clear_state(ui_ButtonONOFF2, LV_STATE_CHECKED); // Turn the button OFF
-    }
-}
-
-void OnOffPompa3(lv_event_t * e)
-{
-	lv_obj_t *button = lv_event_get_target(e);
-    bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
-
-    if (is_on) {
-        Serial.println("Pompa 3 is ON\n");
-        LED3=1;
-        updateFirebaseState(pathPompa3,1);
-    } else {
-        Serial.println("Pompa 3 is OFF\n");
-        LED3=0;
-        updateFirebaseState(pathPompa3,0);
-    }
-  writeOutput(GPIO6, LED3);
-  result = node.writeSingleCoil(0x00003, LED3);
-}
-
-void controlPompa3(int state) {
-    writeOutput(GPIO6, state);
-    LED3 = state; 
-    result = node.writeSingleCoil(0x00003, LED3);
-    Serial.print("Controlling pompa 3: ");
-    Serial.println(state);
-
-    if (state) {
-        lv_obj_add_state(ui_ButtonONOFF3, LV_STATE_CHECKED); // Turn the button ON
-    } else {
-        lv_obj_clear_state(ui_ButtonONOFF3, LV_STATE_CHECKED); // Turn the button OFF
-    }
-}
-
-void OnOffExh(lv_event_t * e)
-{
-  lv_obj_t *button = lv_event_get_target(e);
-	bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
-
-    if (is_on) {
-        Serial.println("Exhaust is ON\n");
-        LED4=1;
-        updateFirebaseState(pathExh,1);
-    } else {
-        Serial.println("Exhaust is OFF\n");
-        LED4=0;
-        updateFirebaseState(pathExh,0);
-    }
-  writeOutput(GPIO5, LED4);
-  result = node.writeSingleCoil(0x00004, LED4);
-}
-
-void controlExhaust(int state) {
-    writeOutput(GPIO5, state);
-    LED4 = state; 
-    result = node.writeSingleCoil(0x00004, LED4);
-    Serial.print("Controlling exhaust: ");
-    Serial.println(state);
-
-    if (state) {
-        lv_obj_add_state(ui_ButtonONOFF4, LV_STATE_CHECKED); // Turn the button ON
-    } else {
-        lv_obj_clear_state(ui_ButtonONOFF4, LV_STATE_CHECKED); // Turn the button OFF
+        lv_obj_clear_state(uiButton, LV_STATE_CHECKED); 
     }
 }
 
@@ -370,8 +293,7 @@ void setup()
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
   
-#if defined(Display_50) || defined(Display_70)
-  //IO Port Pins
+#if defined(Display_50)
   pinMode(38, OUTPUT);
   digitalWrite(38, LOW);
   pinMode(17, OUTPUT);
@@ -380,18 +302,7 @@ void setup()
   digitalWrite(18, LOW);
   pinMode(42, OUTPUT);
   digitalWrite(42, LOW);
-#elif defined(Display_43)
-  pinMode(20, OUTPUT);
-  digitalWrite(20, LOW);
-  pinMode(19, OUTPUT);
-  digitalWrite(19, LOW);
-  pinMode(35, OUTPUT);
-  digitalWrite(35, LOW);
-  pinMode(38, OUTPUT);
-  digitalWrite(38, LOW);
-  pinMode(0, OUTPUT);//TOUCH-CS
 #endif
-  // Init Display
   lcd->begin();
   lcd->fillScreen(BLACK);
   lcd->setTextSize(2);
@@ -399,13 +310,10 @@ void setup()
   
 #ifdef USE_UI
   lv_init();
-
   delay(100);
   touch_init();
-
   screenWidth = lcd->width();
   screenHeight = lcd->height();
-
   lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, screenWidth * screenHeight / 10);
   //  lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, 480 * 272 / 10);
   /* Initialize the display */
@@ -416,7 +324,6 @@ void setup()
   disp_drv.draw_buf = &draw_buf;
   lv_disp_drv_register(&disp_drv);
 
-  /* Initialize the (dummy) input device driver */
   static lv_indev_drv_t indev_drv;
   lv_indev_drv_init(&indev_drv);
   indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -430,31 +337,18 @@ void setup()
 #endif
 
 #ifdef USE_UI
-  ui_init();//ui from Squareline or GUI Guider
+  ui_init();
 #else
-  lcd->fillScreen(RED);
-  delay(800);
   lcd->fillScreen(BLUE);
-  delay(800);
-  lcd->fillScreen(YELLOW);
-  delay(800);
-  lcd->fillScreen(GREEN);
   delay(800);
 #endif
   Serial.println( "Setup done" );
   Wire.begin(SDA, SCL);
 
-  setPinMode(GPIO1, INPUT);
-  setPinMode(GPIO2, INPUT);
-  setPinMode(GPIO3, INPUT);
-  setPinMode(GPIO4, INPUT);
-
   // Initialize the ADS1115
   if (!ads2.begin(0x49)) {
     Serial.println("Failed to initialize ADS 1 .");
-    // while (1);
   }
-
   ads2.setGain(GAIN_ONE);
   setPinMode(GPIO5, OUTPUT);
   setPinMode(GPIO6, OUTPUT);
@@ -464,17 +358,19 @@ void setup()
   // Perform Calibration
   // calibratepH();
   // calibrateEc();
-
 }
-
+unsigned char byteRequest[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; 
 void loop() {
-    // uint8_t input = readInput();
-    // bool inputValues[NUM_INPUT_PINS];
-    // for (int i = 0; i < NUM_INPUT_PINS; i++) {
-    //     inputValues[i] = bitRead(input, i);
-    //     // Serial.println(inputValues[i]);
-    // }
-    // Serial.println();
+    start_calibratation();
+    if(!Firebase.ready()){
+      initFirebase();
+      readFirebase();
+      Serial.println("Firebase now ready");
+    }
+
+    // // get_connection();
+    get_status();
+    sent_data();
 
     // Read analog values from ADS1115
     int16_t adc0_2 = ads2.readADC_SingleEnded(0);
@@ -488,63 +384,20 @@ void loop() {
     temperatureC = convertCurrentToTemperature(current_mA);
     RH = convertADCToRH(adc0_2); 
 
-    // SensorData sensorData = readSensor(byteRequest, sizeof(byteRequest));
-    // ec = sensorData.ec;
-    // ph = sensorData.ph;
+    SensorData sensorData = readSensor(byteRequest, sizeof(byteRequest));
+    ec = sensorData.ec;
+    ph = sensorData.ph;
 
-    // dtostrf(temperatureC, 6, 2, tempStr);
-    // dtostrf(RH, 6, 2, tempStr2);
-    // dtostrf(ec, 6, 0, tempStr3); 
-    // dtostrf(ph, 6, 2, tempStr4);
-    // delay(1000); 
+    dtostrf(temperatureC, 6, 2, tempStr);
+    dtostrf(RH, 6, 2, tempStr2);
+    dtostrf(ec, 6, 0, tempStr3); 
+    dtostrf(ph, 6, 2, tempStr4); 
 
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 
     lv_label_set_text(ui_humidity, tempStr2);
     lv_label_set_text_fmt(ui_ecValue, tempStr3);
     lv_label_set_text_fmt(ui_phValue, tempStr4);
-    
-    // Assuming you have labels with names label_input1, label_input2, label_input3, and label_input4
-    // lv_label_set_text_fmt(ui_Dvalue1, "%d", inputValues[0]);
-    // lv_label_set_text_fmt(ui_Dvalue2, "%d", inputValues[1]);
-    // lv_label_set_text_fmt(ui_Dvalue3, "%d", inputValues[2]);
-    // lv_label_set_text_fmt(ui_Dvalue4, "%d", inputValues[3]);
-
-    if (Serial.available() > 0) {
-      String input = Serial.readStringUntil('\n');
-      input.trim(); 
-
-      if (input == "1") {
-        calibrateChannel();
-      } else if (input == "2") {
-        calibratepH4();
-      } else if (input == "3") {
-        calibratepH6_86();
-      } else if (input == "4") {
-        calibratepH9_18();
-      } else if (input == "5") {
-        calibrateEc();
-      }else if (input == "6") {
-        Serial.println("Start reset1");
-        reset();
-      }else if (input == "7") {
-        Serial.println("Start reset");
-        reset2();
-      }else {
-        Serial.println("Invalid input.");
-      }
-    }
-
-    if(!Firebase.ready()){
-      initFirebase();
-      readFirebase();
-      Serial.println("Firebase now ready");
-    }
-
-    // // get_connection();
-    get_status();
-    sent_data();
-
     lv_timer_handler();
     //lv_task_handler();
     delay(300);
