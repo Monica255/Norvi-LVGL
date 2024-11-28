@@ -1,4 +1,4 @@
-unsigned char byteRequest[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Adjusting the starting address and count
+
 unsigned char byteResponseConfig[8] = {};
 
 String sendCommand(byte* command, size_t commandSize) {
@@ -178,4 +178,31 @@ void reset2(){
   String response;
   response = sendCommand(reset, sizeof(reset));
   Serial.println("Received " + response);
+}
+
+void start_calibratation(){
+  if (Serial.available() > 0) {
+      String input = Serial.readStringUntil('\n');
+      input.trim(); 
+
+      if (input == "1") {
+        calibrateChannel();
+      } else if (input == "2") {
+        calibratepH4();
+      } else if (input == "3") {
+        calibratepH6_86();
+      } else if (input == "4") {
+        calibratepH9_18();
+      } else if (input == "5") {
+        calibrateEc();
+      }else if (input == "6") {
+        Serial.println("Start reset1");
+        reset();
+      }else if (input == "7") {
+        Serial.println("Start reset");
+        reset2();
+      }else {
+        Serial.println("Invalid input.");
+      }
+    }
 }

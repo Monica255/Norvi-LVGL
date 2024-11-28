@@ -5,7 +5,6 @@ const float CURRENT_MAX = 20.0; // Maximum current in mA
 unsigned char byteResponse[sensorFrameSize] = {};
 
 
-
 float convertADCToRH(int16_t adcValue) {
     const float V_REF = 5.0; // Reference voltage in volts (adjust if necessary)
     const float V_MAX = 5.0; // Maximum output voltage of the sensor for 100% RH (adjust if necessary)
