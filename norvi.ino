@@ -49,8 +49,8 @@ Adafruit_ADS1115 ads2;
 
 struct DeviceState {
     int pin;              // GPIO pin
-    int state;            // Current device state
-    int old_state;        // Previous device state (replaces LED variables)
+    int firebase_state;            // Current device state
+    int device_state;        // Previous device state (replaces LED variables)
     uint16_t coil;        // Coil address for Modbus communication
     lv_obj_t *uiButton;   // UI button to control the device
     const char *path;     // Firebase JSON path
@@ -66,9 +66,6 @@ DeviceState devices[] = {
 >>>>>>> f1b4f93 (clean code + rebase add gitignore)
 
 String uid, path, pathMonitoring, pathNutrient, pathControlling;
-String pathPompa1, pathPompa2, pathPompa3, pathExh;
-int statePompa1, statePompa2, statePompa3, stateExh;
-int LED1, LED2, LED3, LED4;
 
 float temperatureC, RH, ph;
 int valSoil, ec;
@@ -208,26 +205,18 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 #endif
 
 uint8_t result;
-
-// A generalized function to handle on/off events for all devices
 void OnOffDevice(bool is_on, DeviceState &device) {
     if (is_on) {
         Serial.printf("%s is ON\n", device.path);
-        device.old_state = 1;
+        device.device_state = 1;
     } else {
         Serial.printf("%s is OFF\n", device.path);
-        device.old_state = 0;
+        device.device_state = 0;
     }
-    updateFirebaseState(device.path, device.old_state);
+    updateFirebaseState(device.path, device.device_state);
 
-    writeOutput(device.pin, device.old_state);
-    result = node.writeSingleCoil(device.coil, device.old_state);
-
-    // if (device.old_state) {
-    //     lv_obj_add_state(device.uiButton, LV_STATE_CHECKED); // Turn the button ON
-    // } else {
-    //     lv_obj_clear_state(device.uiButton, LV_STATE_CHECKED); // Turn the button OFF
-    // }
+    writeOutput(device.pin, device.device_state);
+    result = node.writeSingleCoil(device.coil, device.device_state);
 }
 
 void OnOffPompa1(lv_event_t *e) {
@@ -251,20 +240,20 @@ void OnOffExh(lv_event_t *e) {
 }
 
 
-void controlDevice(int gpioPin, int state, uint16_t modbusAddress, int &ledState, lv_obj_t *uiButton) {
-    writeOutput(gpioPin, state);
-    ledState = state; 
-    result = node.writeSingleCoil(modbusAddress, ledState);
-    Serial.print("Controlling device on GPIO ");
-    Serial.print(gpioPin);
-    Serial.print(": ");
-    Serial.println(state);
-    if (state) {
-        lv_obj_add_state(uiButton, LV_STATE_CHECKED); 
+void controlDevice(DeviceState &device ) {
+    writeOutput(device.pin, device.firebase_state);
+    device.device_state = device.firebase_state; 
+    result = node.writeSingleCoil(device.coil, device.device_state);
+
+    Serial.printf("Controlling device on GPIO %d: %d\n", device.pin, device.firebase_state);
+
+    if (device.firebase_state) {
+        lv_obj_add_state(device.uiButton, LV_STATE_CHECKED); // Turn the button ON
     } else {
-        lv_obj_clear_state(uiButton, LV_STATE_CHECKED); 
+        lv_obj_clear_state(device.uiButton, LV_STATE_CHECKED); // Turn the button OFF
     }
 }
+
 
 void calculateAB(lv_event_t * e)
 {
@@ -292,6 +281,10 @@ void setup()
   node.begin(1, Serial1);                          
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
+
+  // Perform Calibration
+  // calibratepH();
+  // calibrateEc();
   
 #if defined(Display_50)
   pinMode(38, OUTPUT);
@@ -345,7 +338,6 @@ void setup()
   Serial.println( "Setup done" );
   Wire.begin(SDA, SCL);
 
-  // Initialize the ADS1115
   if (!ads2.begin(0x49)) {
     Serial.println("Failed to initialize ADS 1 .");
   }
@@ -354,10 +346,6 @@ void setup()
   setPinMode(GPIO6, OUTPUT);
   setPinMode(GPIO7, OUTPUT);
   setPinMode(GPIO8, OUTPUT);
-
-  // Perform Calibration
-  // calibratepH();
-  // calibrateEc();
 }
 unsigned char byteRequest[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; 
 void loop() {

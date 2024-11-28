@@ -93,9 +93,8 @@ void get_status() {
 
         for (auto &device : devices) {
             if (json.get(jsonData, device.path)) {
-                device.old_state = device.state;  // Store the current state as the old state before updating
-                device.state = jsonData.intValue; // Update the state directly in the device
-                Serial.printf("%s: %d\n", device.path, device.state);
+                device.firebase_state = jsonData.intValue; // Update the state directly in the device
+                Serial.printf("%s: %d\n", device.path, device.firebase_state);
             } else {
                 Serial.printf("Failed to get %s\n", device.path);
             }
@@ -155,8 +154,8 @@ void get_status() {
 
 void updateControlStates() {
     for (auto &device : devices) {
-        if (device.state != device.old_state) { 
-            controlDevice(device.pin, device.state, device.coil, device.old_state, device.uiButton);
+        if (device.firebase_state != device.device_state) { 
+            controlDevice(device);
         }
     }
 }
@@ -169,7 +168,6 @@ void updateFirebaseState(const String &path, int state)
         Serial.println("Failed to update Firebase: " + String(fbdo.errorReason()));
     }
 }
-
 
 void sent_data() {
   json.set("temperatur", temperatureC);
