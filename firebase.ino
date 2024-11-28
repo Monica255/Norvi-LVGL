@@ -1,29 +1,98 @@
 #include "credentials.h"
+
+FirebaseData fbdo;
+FirebaseJson json;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+float target_ec;
+float calc_A;
+float calc_B;
+String status;
+float times;
+
+void initFirebase() {
+  Serial.println("Connection to Firebase");
+  config.api_key = API_KEY;
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+  uid = UID; 
+
+  Firebase.reconnectWiFi(true);
+  fbdo.setResponseSize(4096);
+
+  config.database_url = DATABASE_URL; 
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+  
+  Firebase.begin(&config, &auth);
+}
+
 void readFirebase(){
   Serial.println("Getting User UID");
 
   path = "/smart_farming/" + String(uid) + "/realtime_kebun";
-  pathPompa1 =  String(path) + "/kebun_1/controlling/pompa_1/state";
-  pathPompa2 =  String(path) + "/kebun_1/controlling/pompa_2/state";
-  pathPompa3 =  String(path) + "/kebun_1/controlling/pompa_3/state";
-  pathExh =  String(path) + "/kebun_1/controlling/exhaust_1/state";
-  pathMonitoring = String (path) + "/kebun_1/monitoring";
-  pathNutrient = String (path) + "/kebun_1/nutrient";
+  pathPompa1 =  String(path) + "/kebun1/controlling/pompa_1/state";
+  pathPompa2 =  String(path) + "/kebun1/controlling/pompa_2/state";
+  pathPompa3 =  String(path) + "/kebun1/controlling/pompa_3/state";
+  pathExh =  String(path) + "/kebun1/controlling/exhaust_fan_1/state";
+  pathMonitoring = String (path) + "/kebun1/monitoring";
+  pathNutrient = String (path) + "/kebun1/nutrient";
+  pathControlling = String (path) + "/kebun1/controlling";
 }
 
 void get_status() {
-  // Get status from firebase
 
-  Serial.printf("Get int pompa_1... %s\n", Firebase.getInt(fbdo, pathPompa1, &statePompa1) ? String(statePompa1).c_str() : fbdo.errorReason().c_str());
-  Serial.printf("Get int pompa_2... %s\n", Firebase.getInt(fbdo, pathPompa2, &statePompa2) ? String(statePompa2).c_str() : fbdo.errorReason().c_str());
-  Serial.printf("Get int pompa_3... %s\n", Firebase.getInt(fbdo, pathPompa3, &statePompa3) ? String(statePompa3).c_str() : fbdo.errorReason().c_str());
-  Serial.printf("Get int exhaust_1... %s\n", Firebase.getInt(fbdo, pathExh, &stateExh) ? String(stateExh).c_str() : fbdo.errorReason().c_str());
+  Firebase.getJSON(fbdo, pathControlling);
+  if (fbdo.dataType() == "json") {
+      //Serial.println(fbdo.jsonString());  // Debug: Print entire JSON response
+      FirebaseJson &json = fbdo.jsonObject();
+      FirebaseJsonData jsonData; 
 
-  // digitalWrite(POMPA1PIN, statePompa1);
-  // digitalWrite(LAMPU1PIN, stateLampu1);
-  // controlPompa1(statePompa1);
-  // controlPompa2(statePompa2);
-  controlPompa3(statePompa3);
+      if (json.get(jsonData, "pompa_1/state")) {
+          statePompa1 = jsonData.intValue; // Convert and store as int
+          Serial.printf("Pompa 1: %d\n", statePompa1);
+      } else {
+          Serial.println("Failed to get pompa_1/state");
+      }
+
+      if (json.get(jsonData, "pompa_2/state")) {
+          statePompa2 = jsonData.intValue; // Convert and store as int
+          Serial.printf("Pompa 2: %d\n", statePompa2);
+      } else {
+          Serial.println("Failed to get pompa_2/state");
+      }
+
+      if (json.get(jsonData, "pompa_3/state")) {
+          statePompa3 = jsonData.intValue; // Convert and store as int
+          Serial.printf("Pompa 3: %d\n", statePompa3);
+      } else {
+          Serial.println("Failed to get pompa_3/state");
+      }
+
+      if (json.get(jsonData, "exhaust_fan_1/state")) {
+          stateExh = jsonData.intValue; // Convert and store as int
+          Serial.printf("Exhaust: %d\n", stateExh);
+      } else {
+          Serial.println("Failed to get exhaust_1/state");
+      }
+  } else {
+      Serial.println("Failed to retrieve JSON or data type is not JSON.");
+      Serial.println("Error: " + String(fbdo.errorReason())); // Debugging error
+  }
+
+
+  if (LED1 != statePompa2) {
+      controlPompa1(statePompa1);
+  }
+  if (LED2 != statePompa2) {
+      controlPompa2(statePompa2);
+  }
+  if (LED3 != statePompa3) {
+      controlPompa3(statePompa3);
+  }
+  if (LED4 != stateExh) {
+      controlExhaust(stateExh);
+  }
 
   // Read each nutrient data field from Firebase
     // if (Firebase.getFloat(fbdo, pathNutrient + "/target_ec", &target_ec)) {
@@ -58,27 +127,8 @@ void get_status() {
  
 }
 
-// void read_sensor() {
-//   // membaca sensor kelembaban
-//   const int soilTreshold = 100;
-//   // read soil sensor 1
-//   int readSoil = analogRead(SOILPIN);
-//   if (readSoil >= soilTreshold && readSoil <= 4095) {
-//     valSoil = (100 - ((readSoil / 4095.0) * 100));
-//   } else {
-//     Serial.println(F("Failed to read soil sensor 1!"));
-//     // Set valSoil to 0 if the soil sensor 1 reading is out of range
-//     valSoil = 0;
-//   }
-  
-//   Serial.println("Moisture: " + String(valSoil) + "%");
-
-//   delay(500);
-// }
-
 void updateFirebaseState(const String &path, int state)
 {
-    // Update the state in Firebase
     if (Firebase.setInt(fbdo, path, state)) {
         Serial.println("Firebase updated successfully!");
     } else {
@@ -88,13 +138,10 @@ void updateFirebaseState(const String &path, int state)
 
 
 void sent_data() {
-
   json.set("temperatur", temperatureC);
   json.set("RH", RH);
   json.set("kelembaban_tanah_1", valSoil);
   json.set("ec", ec);
   json.set("ph", ph);
-  
   Firebase.setJSON(fbdo, pathMonitoring, json);
-
 }

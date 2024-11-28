@@ -17,7 +17,6 @@
 #define TFT_BL -1
 #define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
 
-// Define the I2C address for the ADS1115
 Adafruit_ADS1115 ads2;
 
 #define PCA9538_ADDR 0x73
@@ -42,6 +41,9 @@ Adafruit_ADS1115 ads2;
 
 #define NUM_INPUT_PINS 4
 
+#define sensorFrameSize  19
+#define sensorWaitingTime 1000
+
 // Library Firebase ESP32
 #include <WiFi.h>
 #include <FirebaseESP32.h>
@@ -52,18 +54,14 @@ Adafruit_ADS1115 ads2;
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
+
 #include "credentials.h"
 
-FirebaseData fbdo;
-FirebaseJson json;
-FirebaseAuth auth;
-FirebaseConfig config;
-
-String uid, path, pathPompa1, pathPompa2, pathPompa3, pathExh, pathMonitoring, pathNutrient;
+String uid, path, pathPompa1, pathPompa2, pathPompa3, pathExh, pathMonitoring, pathNutrient, pathControlling;
+int statePompa1, statePompa2, statePompa3, stateExh;
 
 float temperatureC, RH, ph;
 int valSoil, ec;
-int statePompa1, statePompa2, statePompa3, stateExh;
 
 struct SensorData {
   float ph;
@@ -82,21 +80,6 @@ void initWiFi() {
   Serial.println();
 }
 
-void initFirebase() {
-  Serial.println("Connection to Firebase");
-  config.api_key = API_KEY;
-  auth.user.email = USER_EMAIL;
-  auth.user.password = USER_PASSWORD;
-  uid = UID; 
-
-  Firebase.reconnectWiFi(true);
-  fbdo.setResponseSize(4096);
-
-  config.database_url = DATABASE_URL; 
-  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
-  
-  Firebase.begin(&config, &auth);
-}
 
 void setPinMode(uint8_t pin, uint8_t mode) {
   uint8_t config = readRegister(PCA9538_CONFIG_REG);
@@ -172,14 +155,6 @@ Arduino_RPi_DPI_RGBPanel *lcd = new Arduino_RPi_DPI_RGBPanel(
   
 #endif
 
-/*******************************************************************************
- * Screen Driver Configuration  end
-*******************************************************************************/
-
-
-/*******************************************************************************
-   Please config the touch panel in touch.h
- ******************************************************************************/
 #include "touch.h"
 
 #ifdef USE_UI
@@ -241,8 +216,6 @@ uint8_t result;
 void OnOffPompa1(lv_event_t * e)
 {
     lv_obj_t *button = lv_event_get_target(e);
-
-    // Check if the button is in the checked state
     bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
 
     if (is_on) {
@@ -254,16 +227,15 @@ void OnOffPompa1(lv_event_t * e)
         LED1=0;
         updateFirebaseState(pathPompa1,0);
     }
-  writeOutput(GPIO5, LED1);
+  writeOutput(GPIO8, LED1);
   result = node.writeSingleCoil(0x00001, LED1);
 }
 
 void controlPompa1(int state) {
-    // Call writeOutput for GPIO5
-    writeOutput(GPIO5, state);
+    writeOutput(GPIO8, state);
     LED1 = state; 
     result = node.writeSingleCoil(0x00001, LED1);
-    Serial.println("Controlling pompa 1");
+    Serial.print("Controlling pompa 1: ");
     Serial.println(state);
 
     if (state) {
@@ -278,8 +250,6 @@ void controlPompa1(int state) {
 void OnOffPompa2(lv_event_t * e)
 {
 	lv_obj_t *button = lv_event_get_target(e);
-
-    // Check if the button is in the checked state
     bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
 
     if (is_on) {
@@ -291,16 +261,15 @@ void OnOffPompa2(lv_event_t * e)
         LED2=0;
         updateFirebaseState(pathPompa2,0);
     }
-  writeOutput(GPIO6, LED2);
-  result = node.writeSingleCoil(0x00001, LED2);
+  writeOutput(GPIO7, LED2);
+  result = node.writeSingleCoil(0x00002, LED2);
 }
 
 void controlPompa2(int state) {
-    // Call writeOutput for GPIO5
-    writeOutput(GPIO5, state);
+    writeOutput(GPIO7, state);
     LED2 = state; 
-    result = node.writeSingleCoil(0x00001, LED2);
-    Serial.println("Controlling pompa 3");
+    result = node.writeSingleCoil(0x00002, LED2);
+    Serial.print("Controlling pompa 2: ");
     Serial.println(state);
 
     if (state) {
@@ -313,8 +282,6 @@ void controlPompa2(int state) {
 void OnOffPompa3(lv_event_t * e)
 {
 	lv_obj_t *button = lv_event_get_target(e);
-
-    // Check if the button is in the checked state
     bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
 
     if (is_on) {
@@ -326,19 +293,15 @@ void OnOffPompa3(lv_event_t * e)
         LED3=0;
         updateFirebaseState(pathPompa3,0);
     }
-  writeOutput(GPIO7, LED3);
-  result = node.writeSingleCoil(0x00001, LED3);
+  writeOutput(GPIO6, LED3);
+  result = node.writeSingleCoil(0x00003, LED3);
 }
 
 void controlPompa3(int state) {
-    // Call writeOutput for GPIO5
-    writeOutput(GPIO5, state);
     writeOutput(GPIO6, state);
-    writeOutput(GPIO7, state);
-    writeOutput(GPIO8, state);
     LED3 = state; 
-    result = node.writeSingleCoil(0x00001, LED3);
-    Serial.println("Controlling pompa 3");
+    result = node.writeSingleCoil(0x00003, LED3);
+    Serial.print("Controlling pompa 3: ");
     Serial.println(state);
 
     if (state) {
@@ -350,7 +313,34 @@ void controlPompa3(int state) {
 
 void OnOffExh(lv_event_t * e)
 {
-	// Your code here
+  lv_obj_t *button = lv_event_get_target(e);
+	bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
+
+    if (is_on) {
+        Serial.println("Exhaust is ON\n");
+        LED4=1;
+        updateFirebaseState(pathExh,1);
+    } else {
+        Serial.println("Exhaust is OFF\n");
+        LED4=0;
+        updateFirebaseState(pathExh,0);
+    }
+  writeOutput(GPIO5, LED4);
+  result = node.writeSingleCoil(0x00004, LED4);
+}
+
+void controlExhaust(int state) {
+    writeOutput(GPIO5, state);
+    LED4 = state; 
+    result = node.writeSingleCoil(0x00004, LED4);
+    Serial.print("Controlling exhaust: ");
+    Serial.println(state);
+
+    if (state) {
+        lv_obj_add_state(ui_ButtonONOFF4, LV_STATE_CHECKED); // Turn the button ON
+    } else {
+        lv_obj_clear_state(ui_ButtonONOFF4, LV_STATE_CHECKED); // Turn the button OFF
+    }
 }
 
 void calculateAB(lv_event_t * e)
@@ -367,8 +357,6 @@ void startAutoNutrient(lv_event_t * e)
 {
 	// Your code here
 }
-
-
 
 
 void setup()
@@ -422,7 +410,6 @@ void setup()
   //  lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, 480 * 272 / 10);
   /* Initialize the display */
   lv_disp_drv_init(&disp_drv);
-  /* Change the following line to your display resolution */
   disp_drv.hor_res = screenWidth;
   disp_drv.ver_res = screenHeight;
   disp_drv.flush_cb = my_disp_flush;
@@ -468,9 +455,7 @@ void setup()
     // while (1);
   }
 
-  // Set the gain for ADS1115
   ads2.setGain(GAIN_ONE);
-
   setPinMode(GPIO5, OUTPUT);
   setPinMode(GPIO6, OUTPUT);
   setPinMode(GPIO7, OUTPUT);
@@ -481,291 +466,6 @@ void setup()
   // calibrateEc();
 
 }
-
-const float ADC_MAX_VALUE = 65535.0; // Adjust this according to your ADC's max value
-const float CURRENT_MIN = 4.0; // Minimum current in mA
-const float CURRENT_MAX = 20.0; // Maximum current in mA
-
-float convertADCToRH(int16_t adcValue) {
-    const float V_REF = 5.0; // Reference voltage in volts (adjust if necessary)
-    const float V_MAX = 5.0; // Maximum output voltage of the sensor for 100% RH (adjust if necessary)
-
-    float V_out = (float)adcValue / ADC_MAX_VALUE * V_REF;
-    float RH = (V_out / V_MAX) * 100.0;
-
-    return RH;
-}
-
-float convertCurrentToTemperature(float current_mA) {
-    float temperature = (current_mA-4.0) * (120.0 / 16.0) - 40.0; // based on your temperature range
-    return temperature;
-}
-
-float convertADCToCurrent(int16_t adcValue) {
-    float current_mA = ((float)adcValue / ADC_MAX_VALUE) * 40.96;
-    return current_mA;
-}
-
-#define sensorFrameSize  19
-#define sensorWaitingTime 1000
-
-//0X01 0X06 0X00 0X30 0X00 0X02 0X08 0X04
-// unsigned char byteRequest[8] = {0x01, 0x03, 0x06, 0x00, 0x00, 0x03, 0x08, 0x04};
-unsigned char byteRequest[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Adjusting the starting address and count
-unsigned char byteResponseConfig[8] = {};
-unsigned char byteResponse[sensorFrameSize] = {};
-String run = "";
-
-void calibratepH() {
-  // Step 1: Select pH Calibration Channel
-  String x;
-  //01 06 00 6F 00 00 B9 D7
-  byte selectChannelCommand[] = {0x01, 0x06, 0x00, 0x6F, 0x00, 0x00, 0xB9, 0xD7};
-  do{
-    x= sendCommand(selectChannelCommand, sizeof(selectChannelCommand));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  }while(x != "0106006F0000B9D7");
-   
-  // Step 2: Calibrate with pH 4.00
-  // 01 06 00 69 00 01 98 16
-  byte ph4Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x01, 0x98, 0x16};
-  do {
-    x = sendCommand(ph4Command, sizeof(ph4Command));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  } while (x != "0106006900019816");
-
-  // Step 3: Calibrate with pH 6.68
-  //01 06 00 69 00 02 D8 17
-  byte ph6Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x02, 0xD8, 0x17};
-  do {
-    x = sendCommand(ph6Command, sizeof(ph6Command));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  } while (x != "010600690002D817");
-
-  // Step 4: Calibrate with pH 9.18
-  // 01 06 00 69 00 03 19 D7
-  byte ph9Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x03, 0x19, 0xD7};
-  do {
-    x = sendCommand(ph9Command, sizeof(ph9Command));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  } while (x != "01060069000319D7");
-}
-
-void calibrateEc() {
-  String x;
-  byte selectChannelCommandEC[] = {0x01, 0x06, 0x00, 0x6F, 0x00, 0x01, 0x78, 0x17};
-  // do{
-    x= sendCommand(selectChannelCommandEC, sizeof(selectChannelCommandEC));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  // }while(x != "0106006F00017817");
-   
-  // 01 06 00 5E 00 01 29 D8
-  byte ec2Command[] = {0x01, 0x06, 0x00, 0x5E, 0x00, 0x01, 0x29, 0xD8};
-  // do {
-    x = sendCommand(ec2Command, sizeof(ec2Command));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  // } while (x != "0106005E000129D8");
-
-  //01 06 00 5F 03 DC B8 B1
-  byte ec3Command[] = {0x01, 0x06, 0x00, 0x5F, 0x03, 0xDC, 0xB8, 0xB1};
-  // do {
-    x = sendCommand(ec3Command, sizeof(ec3Command));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  // } while (x != "0106005F03DCB8B1");
-
-  //010600542B1EA168
-  // byte ec4Command[] = {0x01, 0x06, 0x00, 0x54, 0x2B, 0x1E, 0xA1, 0x68};
-
-  // 01 06 00 54 07 D0 CB B6
-  byte ec4Command[] = {0x01, 0x06, 0x00, 0x54, 0x07, 0xD0, 0xCB, 0xB6};
-  // do {
-    x = sendCommand(ec4Command, sizeof(ec4Command));
-    x.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + x);
-  // } while (x != "0106005F03DCB8B1");
-  
-}
-
-void calibrateEc2(String command) {
-  String x;
-  String y=command;
-  // const size_t commandLength = command.length() / 3; // Assuming the format is "XX XX XX"
-  byte commandBytes[8];
-  
-  // Parse the command string
-  for (size_t i = 0; i < 8; ++i) {
-      String byteString = command.substring(i * 3, i * 3 + 2); // Extract 2 characters for each byte
-      commandBytes[i] = strtol(byteString.c_str(), NULL, 16); // Convert hex string to byte
-  }
-
-  y.replace(" ", "");
-  do {
-      x = sendCommand(commandBytes, 8);
-      x.replace(" ", ""); // Remove spaces from response
-      Serial.println("Received (formatted): " + x);
-  } while (x != String(y));
-}
-
-void calibrateChannel() {
-  byte selectChannelCommand[] = {0x01, 0x06, 0x00, 0x6F, 0x00, 0x00, 0xB9, 0xD7};
-  String response;
-  do {
-    response = sendCommand(selectChannelCommand, sizeof(selectChannelCommand));
-    response.replace(" ", "");
-    Serial.println("Received (formatted): " + response);
-  } while (response != "0106006F0000B9D7");
-  Serial.println("Channel selected successfully.");
-}
-
-void calibratepH4() {
-  byte ph4Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x01, 0x98, 0x16};
-  String response;
-  do {
-    response = sendCommand(ph4Command, sizeof(ph4Command));
-    response.replace(" ", "");
-    Serial.println("Received (formatted): " + response);
-  } while (response != "0106006900019816");
-  Serial.println("Calibrated to pH 4.00 successfully.");
-}
-
-void calibratepH6_86() {
-  // byte ph6Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x03, 0x19, 0xD7};
-  String response;
-  // do {
-  //   response = sendCommand(ph6Command, sizeof(ph6Command));
-  //   response.replace(" ", "");
-  //   Serial.println("Received (formatted): " + response);
-  // } while (response != "01060069000319D7");
-  // Serial.println("Calibrated to pH 6.86 successfully.");
-
-  // Step 3: Calibrate with pH 6.68
-  //01 06 00 69 00 02 D8 17
-  byte ph6Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x02, 0xD8, 0x17};
-  do {
-    response = sendCommand(ph6Command, sizeof(ph6Command));
-    response.replace(" ", ""); // Remove spaces from response
-    Serial.println("Received (formatted): " + response);
-  } while (response != "010600690002D817");
-  Serial.println("Calibrated to pH 6.68 successfully.");
-}
-
-void calibratepH9_18() {
-  byte ph9Command[] = {0x01, 0x06, 0x00, 0x69, 0x00, 0x03, 0x19, 0xD7};
-  String response;
-  do {
-    response = sendCommand(ph9Command, sizeof(ph9Command));
-    response.replace(" ", "");
-    Serial.println("Received (formatted): " + response);
-  } while (response != "01060069000319D7");
-  Serial.println("Calibrated to pH 9.18 successfully.");
-}
-
-int sensorValue(int x, int y) {
-  int t = 0;
-  t = x * 256;
-  t = t + y;
-
-  return t;
-}
-
-String sendCommand(byte* command, size_t commandSize) {
-  while (Serial1.available()) {
-      Serial1.read();  // Clear any junk data from the buffer
-  }
-
-  Serial1.write(command, commandSize); // Send the command
-  delay(8000); // Short delay for processing
-  
-  String response = "";
-  
-  // Wait until the response is fully available
-  while (Serial1.available()) {
-    byte byteRead = Serial1.read();
-    response += byteRead < 0x10 ? " 0" : " ";  // Add leading space for single digits
-    response += String(byteRead, HEX);  // Convert byte to hex and append to the response
-  }
-
-  response.toUpperCase();  // Ensure the response is in uppercase
-  
-  return response;
-}
-
-
-SensorData readSensor(byte* command, size_t commandSize) {
-  // Flush the serial buffer before sending a new request
-  while (Serial1.available()) {
-      Serial1.read();  // Clear any junk data from the buffer
-  }
-  
-  Serial1.write(command, commandSize);
-
-  unsigned long resptime = millis();
-  while ((Serial1.available() < sensorFrameSize) && ((millis() - resptime) < sensorWaitingTime)) {
-    delay(1);
-  }
-  
-  String response = "";
-
-  int bytesRead = 0;
-  while (Serial1.available() && bytesRead < sensorFrameSize) {
-    byteResponse[bytesRead++] = Serial1.read();
-  }
-
-  String responseString;
-  for (int j = 0; j < sensorFrameSize; j++) {
-    responseString += byteResponse[j] < 0x10 ? " 0" : " ";
-    responseString += String(byteResponse[j], HEX);
-    responseString.toUpperCase();
-  }
-  Serial.println(responseString);
-  // Extract sensor values
-  SensorData data;
-  data.ph = sensorValue(byteResponse[11], byteResponse[12]) * 0.01;         // pH with 2 decimal places
-  data.ec = sensorValue(byteResponse[13], byteResponse[14]);                // EC after temperature compensation
-  data.temperature = sensorValue(byteResponse[15], byteResponse[16]) * 0.1; // Temperature with 1 decimal place
-
-  // Print values
-  // Serial.println("pH: " + String(data.ph));
-  // Serial.println("EC: " + String(data.ec) + " uS/cm");
-  // Serial.println("Temperature: " + String(data.temperature) + " °C");
-
-  return data;
-}
-//FE 06 00 37 00 01 ED CB can send this command if 485 is connected to only one device.
-//01 03 00 00 00 20 44 12 
-void reset(){
-  byte reset1[] = {0xFE, 0x06, 0x00, 0x37, 0x00, 0x01, 0xED, 0xCB};
-  String response;
-  
-  response = sendCommand(reset1, sizeof(reset1));
-  Serial.println("Received " + response);
-  
-}
-
-void reset2(){
-  byte reset[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x20, 0x44, 0x12};
-  String response;
-  
-  response = sendCommand(reset, sizeof(reset));
-  Serial.println("Received " + response);
-}
-
-
-
-
-float target_ec;
-float calc_A;
-float calc_B;
-String status;
-float times;
-
 
 void loop() {
     // uint8_t input = readInput();
@@ -823,56 +523,30 @@ void loop() {
       } else if (input == "4") {
         calibratepH9_18();
       } else if (input == "5") {
-        run = "run";
-        Serial.println("Start running");
-      }else if (input == "6") {
         calibrateEc();
-      }else if (input == "7") {
-        // Serial.println("Input hex");
-        // String input2 = Serial.readStringUntil('\n');
-        // input2.trim(); 
-        // calibrateEc2(input2);
-      }else if (input == "8") {
+      }else if (input == "6") {
         Serial.println("Start reset1");
         reset();
-      }else if (input == "9") {
+      }else if (input == "7") {
         Serial.println("Start reset");
         reset2();
+      }else {
+        Serial.println("Invalid input.");
       }
-      else {
-        Serial.println("Invalid input. Please enter 1, 2, 3, or 4.");
-      }
-      
     }
 
-    // Serial.println("looping");
     if(!Firebase.ready()){
       initFirebase();
       readFirebase();
       Serial.println("Firebase now ready");
     }
 
-    // if (ts.touched()) {
-    //     Serial.println("Touch detected!");
-    //     Serial.println(touch_last_x);
-    //     Serial.println(touch_last_y);
-    // } else {
-    //     Serial.println("No touch detected.");
-    // }
-
-    
-    // // GET CONNECTION STATE
     // // get_connection();
     get_status();
     sent_data();
 
-    writeOutput(GPIO5, 1);
-    writeOutput(GPIO6, 1);
-    writeOutput(GPIO7, 1);
-    writeOutput(GPIO8, 1);
-
     lv_timer_handler();
-    lv_task_handler();
-    delay(500);
+    //lv_task_handler();
+    delay(300);
 #endif
 }
