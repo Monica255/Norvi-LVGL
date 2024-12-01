@@ -44,6 +44,7 @@ Adafruit_ADS1115 ads2;
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
+
 #define sensorFrameSize  19
 #define sensorWaitingTime 1500
 
@@ -429,6 +430,7 @@ void loop() {
     lv_label_set_text_fmt(ui_humidity, tempStr3);
     lv_label_set_text_fmt(ui_ecValue, tempStr4);
     lv_label_set_text_fmt(ui_phValue, tempStr5);
+
     lv_timer_handler();
     //lv_task_handler();
     delay(5);
