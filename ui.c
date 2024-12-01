@@ -310,5 +310,5 @@ ui_screenControlling_screen_init();
 ui_screenNutrient_screen_init();
 ui_screenNutrient1_screen_init();
 ui____initial_actions0 = lv_obj_create(NULL);
-lv_disp_load_scr( ui_screenControlling);
+lv_disp_load_scr( ui_screenHome);
 }

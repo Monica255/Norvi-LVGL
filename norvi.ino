@@ -5,7 +5,6 @@
 
 ModbusMaster node;
 
-
 #define Display_50
 #define USE_UI
 #define SDA 19
@@ -45,25 +44,28 @@ Adafruit_ADS1115 ads2;
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
+#define sensorFrameSize  19
+#define sensorWaitingTime 1500
+
 #include "credentials.h"
 
 struct DeviceState {
     int pin;              // GPIO pin
-    int firebase_state;            // Current device state
-    int device_state;        // Previous device state (replaces LED variables)
+    int firebase_state;       // Previous device state (replaces LED variables)
     uint16_t coil;        // Coil address for Modbus communication
     lv_obj_t *uiButton;   // UI button to control the device
     const char *path;     // Firebase JSON path
 };
-
+std::vector<DeviceState> devices;
 // Devices array
+
 DeviceState devices[] = {
     {GPIO8, 0, 0, 0x00001, ui_ButtonONOFF1, "pompa_1/state"},
     {GPIO7, 0, 0, 0x00002, ui_ButtonONOFF2, "pompa_2/state"},
     {GPIO6, 0, 0, 0x00003, ui_ButtonONOFF3, "pompa_3/state"},
     {GPIO5, 0, 0, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"}
 };
->>>>>>> f1b4f93 (clean code + rebase add gitignore)
+
 
 String uid, path, pathMonitoring, pathNutrient, pathControlling;
 float temperatureC, RH, valSoil;
@@ -215,18 +217,33 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 #endif
 
 uint8_t result;
-
+enum FetchStates {
+    FETCH,
+    SEND
+};
+enum FetchState {
+    IDLE,
+    FETCH_INIT,
+    FETCH_WAIT,
+    FETCH_PROCESS,
+    UPDATE_DEVICE,
+    FETCH_DONE
+};
+FetchState fetchState = FETCH_INIT;
 void OnOffDevice(bool is_on, DeviceState &device) {
+    int x;
     if (is_on) {
         Serial.printf("%s is ON\n", device.path);
-        device.device_state = 1;
+        x = 1;
     } else {
         Serial.printf("%s is OFF\n", device.path);
-        device.device_state = 0;
+        x = 0;
     }
-    updateFirebaseState(device.path, device.device_state);
-    writeOutput(device.pin, device.device_state);
-    result = node.writeSingleCoil(device.coil, device.device_state);
+    fetchState = IDLE;
+    writeOutput(device.pin, x);
+    updateFirebaseState(device.path, x);
+    result = node.writeSingleCoil(device.coil, x);
+    fetchState = FETCH_INIT;
 
 }
 
@@ -250,19 +267,27 @@ void OnOffExh(lv_event_t *e) {
     OnOffDevice(is_on, devices[3]);
 }
 
-
+enum SensorReadState {
+    IDLE2,
+    INIT_SENSOR_READ,
+    WAIT_FOR_RESPONSE,
+    READ_SENSOR_DATA,
+    READ_SENSOR_DATA_CONT,
+    PROCESS_SENSOR_DATA,
+    SAVE_SENSOR_DATA,
+    SAVE_SENSOR_DATA2,
+    CHECK_DATA,
+    SAVE_FIREBASE,
+    READ_COMPLETE
+};
+SensorReadState sensorReadState = INIT_SENSOR_READ;
 void controlDevice(DeviceState &device ) {
+    sensorReadState = IDLE2;
     writeOutput(device.pin, device.firebase_state);
-    device.device_state = device.firebase_state; 
-    result = node.writeSingleCoil(device.coil, device.device_state);
+    result = node.writeSingleCoil(device.coil, device.firebase_state);
 
     Serial.printf("Controlling device on GPIO %d: %d\n", device.pin, device.firebase_state);
-
-    if (device.firebase_state) {
-        lv_obj_add_state(device.uiButton, LV_STATE_CHECKED); // Turn the button ON
-    } else {
-        lv_obj_clear_state(device.uiButton, LV_STATE_CHECKED); // Turn the button OFF
-    }
+    sensorReadState = INIT_SENSOR_READ;
 }
 
 
@@ -287,7 +312,7 @@ void setup()
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(1000);
-  initWiFi();
+  
   node.begin(1, Serial1);                          
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
@@ -344,6 +369,11 @@ void setup()
   lcd->fillScreen(BLUE);
   delay(800);
 #endif
+  devices.push_back({GPIO8, 0, 0x00001, ui_ButtonONOFF1, "pompa_1/state"});
+  devices.push_back({GPIO7, 0, 0x00002, ui_ButtonONOFF2, "pompa_2/state"});
+  devices.push_back({GPIO6, 0, 0x00003, ui_ButtonONOFF3, "pompa_3/state"});
+  devices.push_back({GPIO5, 0, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"});
+
   Serial.println( "Setup done" );
   Wire.begin(SDA, SCL);
 
@@ -356,72 +386,43 @@ void setup()
   setPinMode(GPIO7, OUTPUT);
   setPinMode(GPIO8, OUTPUT);
 }
-unsigned char byteRequest[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; 
-unsigned long startTime = 0; // To track time
-bool isWaiting = false;      // To manage the timing state
+
+void reconnectWiFi() {
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 20000) {
+    Serial.print('.');
+    delay(1000);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi reconnected!");
+  } else {
+    Serial.println("\nFailed to reconnect. Retrying...");
+  }
+}
+
+char tempStr[10],tempStr2[10], tempStr3[10], tempStr4[10]; 
 
 void loop() {
-    start_calibratation();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi not connected. Attempting to reconnect...");
+      reconnectWiFi();
+      return; // Skip the rest of the loop if not connected
+    }
+    Serial.println("WiFi connected. Running main code...");
+
     if(!Firebase.ready()){
       initFirebase();
       readFirebase();
       Serial.println("Firebase now ready");
     }
 
-    // // get_connection();
     get_status();
-    sent_data();
-
-    // Read analog values from ADS1115
-    int16_t adc0_2 = ads2.readADC_SingleEnded(0);
-    int16_t adc1_2 = ads2.readADC_SingleEnded(1);
-    // int16_t adc2_2 = ads2.readADC_SingleEnded(2);
-    // int16_t adc3_2 = ads2.readADC_SingleEnded(3);
-
-    char tempStr[10],tempStr2[10], tempStr3[10], tempStr4[10]; 
-  
-    float current_mA = convertADCToCurrent(adc1_2);
-    temperatureC = convertCurrentToTemperature(current_mA);
-    RH = convertADCToRH(adc0_2); 
-
-    SensorData sensorData = readSensor(byteRequest, sizeof(byteRequest));
-    ec = sensorData.ec;
-    ph = sensorData.ph;
-
-    dtostrf(temperatureC, 6, 2, tempStr);
-    dtostrf(RH, 6, 2, tempStr2);
-    dtostrf(ec, 6, 0, tempStr3); 
-    dtostrf(ph, 6, 2, tempStr4); 
-
-    if (nutrient.status == "start") {
-        startNutrient();
-    } else if (nutrient.status == "on progress"){
-      bool gpio5State = readGPIOState(GPIO5);
-      if (!gpio5State) {
-          Serial.println("GPIO5 is OFF. Starting nutrient process...");
-          if (!isWaiting) {
-              OnOffDevice(true, devices[3]); // Start device 3
-              startTime = millis();         // Record the start time
-              isWaiting = true;            
-          }
-
-          if (ec >= nutrient.target_ec) {
-            Serial.println("EC target reached. Stopping...");
-            OnOffDevice(false, devices[3]); // Turn OFF device 3
-            isWaiting = false;              // Reset timing state
-            updateNutrientState("done");
-          }
-
-          if (isWaiting && millis() - startTime >= nutrient.times * 1000) {
-              OnOffDevice(false, devices[3]); // Stop device 3 after the time
-              isWaiting = false;              // Reset waiting state
-              updateNutrientState("done");
-          }
-      } else if(nutrient.status == "stop"){
-          OnOffDevice(false, devices[2]);
-          OnOffDevice(false, devices[3]);
-      }
-    }
+    readRhTempNonBlocking();
+    readSensorNonBlocking();
 
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 
@@ -430,6 +431,6 @@ void loop() {
     lv_label_set_text_fmt(ui_phValue, tempStr4);
     lv_timer_handler();
     //lv_task_handler();
-    delay(300);
+    delay(5);
 #endif
 }
