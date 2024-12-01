@@ -420,6 +420,7 @@ void loop() {
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 
     lv_label_set_text(ui_humidity, tempStr2);
+    lv_label_set_text(ui_lux, tempStr3);
     lv_label_set_text_fmt(ui_ecValue, tempStr3);
     lv_label_set_text_fmt(ui_phValue, tempStr4);
     lv_timer_handler();
