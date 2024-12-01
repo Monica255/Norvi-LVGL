@@ -5,6 +5,7 @@ const float CURRENT_MAX = 20.0; // Maximum current in mA
 enum ReadState {
     READ_ADC0,
     READ_ADC1,
+    READ_ADC2,
     READ_CONVERT,
     READ_DONE
 };
@@ -12,11 +13,13 @@ enum ReadState {
 ReadState readState = READ_ADC0;
 int16_t adc0_2 = 0;
 int16_t adc1_2 = 0;
+int16_t adc2_2 = 0;
 float current_mA = 0.0;
 
 void readRhTempNonBlocking() {
     static unsigned long lastReadTime = 0;
     static unsigned long lastReadTime2 = 0;
+    static unsigned long lastReadTime3 = 0;
     const unsigned long readInterval = 1000; // Adjust as necessary for ADC sampling time
 
     switch (readState) {
@@ -36,13 +39,23 @@ void readRhTempNonBlocking() {
             }
             break;
 
+        case READ_ADC2:
+            if (millis() - lastReadTime2 >= readInterval) {
+                lastReadTime2 = millis();
+                adc2_2 = ads2.readADC_SingleEnded(2); 
+                readState = READ_CONVERT;
+            }
+            break;
+
         case READ_CONVERT:
             current_mA = convertADCToCurrent(adc1_2);
             temperatureC = convertCurrentToTemperature(current_mA);
             RH = convertADCToRH(adc0_2);
+            valSoil = convertADCToRH(adc2_2);
 
             dtostrf(temperatureC, 6, 2, tempStr);
             dtostrf(RH, 6, 2, tempStr2);
+            dtostrf(valSoil, 6, 2, tempStr3);
             readState = READ_DONE;
             break;
 
@@ -222,4 +235,5 @@ void readSensorNonBlocking() {
             break;
     }
 }
+
 
