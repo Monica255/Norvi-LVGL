@@ -12,11 +12,8 @@ extern "C" {
 
 void OnOffPompa1(lv_event_t * e);
 void OnOffPompa2(lv_event_t * e);
-void OnOffPompa3(lv_event_t * e);
-void OnOffExh(lv_event_t * e);
 void calculateAB(lv_event_t * e);
 void startManualNutrient(lv_event_t * e);
-void startAutoNutrient(lv_event_t * e);
 
 #ifdef __cplusplus
 } /*extern "C"*/

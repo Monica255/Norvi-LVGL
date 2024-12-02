@@ -53,9 +53,9 @@ void readRhTempNonBlocking() {
             RH = convertADCToRH(adc0_2);
             valSoil = convertADCToRH(adc2_2);
 
-            dtostrf(temperatureC, 6, 2, tempStr);
-            dtostrf(RH, 6, 2, tempStr2);
-            dtostrf(valSoil, 6, 2, tempStr3);
+            dtostrf(temperatureC, 6, 1, tempStr);
+            dtostrf(RH, 6, 0, tempStr2);
+            dtostrf(valSoil, 6, 0, tempStr3);
             readState = READ_DONE;
             break;
 
@@ -66,8 +66,6 @@ void readRhTempNonBlocking() {
             break;
     }
 }
-
-
 
 float convertADCToRH(int16_t adcValue) {
     const float V_REF = 5.0; // Reference voltage in volts (adjust if necessary)
@@ -152,7 +150,6 @@ void readSensorNonBlocking() {
     switch (sensorReadState) {
         case INIT_SENSOR_READ:
             if (millis() - sensorStartTime >= READ_INTERVAL) {
-                Serial.println("init sensor");
                 while (Serial1.available()) {
                     Serial1.read();  // Clear any junk data from the buffer
                 }
@@ -174,21 +171,15 @@ void readSensorNonBlocking() {
             break;
 
         case READ_SENSOR_DATA:
-            Serial.println("read sensor data (first half)");
-            // Read half of the frame size
             while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE / 2) {
                 byteResponse[bytesRead++] = Serial1.read();
             }
-
-            // Check if the first half is read
             if (bytesRead >= SENSOR_FRAME_SIZE / 2) {
                 sensorReadState = READ_SENSOR_DATA_CONT; // Move to second-half read state
             }
             break;
 
         case READ_SENSOR_DATA_CONT:
-            Serial.println("read sensor data (second half)");
-            // Read the remaining half of the frame size
             while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE) {
                 byteResponse[bytesRead++] = Serial1.read();
             }
@@ -221,6 +212,8 @@ void readSensorNonBlocking() {
             if(ec2!=ec || ph2!=ph){
                 ec=ec2;
                 ph=ph2;
+                dtostrf(ec, 6, 0, tempStr4);
+                dtostrf(ph, 6, 0, tempStr5);
                 sensorReadState = SAVE_FIREBASE;
             }else {
                 sensorReadState = READ_COMPLETE;

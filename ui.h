@@ -27,13 +27,17 @@ extern lv_obj_t *ui_phValue;
 extern lv_obj_t *ui_panelEC;
 extern lv_obj_t *ui_LabelECValue;
 extern lv_obj_t *ui_ecValue;
+extern lv_obj_t *ui_ecValue1;
 extern lv_obj_t *ui_panelSensor;
 extern lv_obj_t *ui_LabelTemp;
 extern lv_obj_t *ui_LabelHumidity;
-extern lv_obj_t *ui_LabelLux;
+extern lv_obj_t *ui_labelSoil;
 extern lv_obj_t *ui_temp;
+extern lv_obj_t *ui_temp1;
 extern lv_obj_t *ui_humidity;
-extern lv_obj_t *ui_lux;
+extern lv_obj_t *ui_humidity1;
+extern lv_obj_t *ui_Soil_Moisture;
+extern lv_obj_t *ui_Soil_Moisture1;
 void ui_event_ButtonControlling1( lv_event_t * e);
 extern lv_obj_t *ui_ButtonControlling1;
 extern lv_obj_t *ui_LabelControlling1;
@@ -109,50 +113,14 @@ extern lv_obj_t *ui_doseB;
 void ui_event_ButtonStart( lv_event_t * e);
 extern lv_obj_t *ui_ButtonStart;
 extern lv_obj_t *ui_LabelButtonStart;
-void ui_event_ButtonManual( lv_event_t * e);
-extern lv_obj_t *ui_ButtonManual;
-extern lv_obj_t *ui_LabelManual;
-// SCREEN: ui_screenNutrient1
-void ui_screenNutrient1_screen_init(void);
-extern lv_obj_t *ui_screenNutrient1;
-void ui_event_ButtonControlling4( lv_event_t * e);
-extern lv_obj_t *ui_ButtonControlling4;
-extern lv_obj_t *ui_LabelControlling4;
-extern lv_obj_t *ui_ButtonNutrient4;
-extern lv_obj_t *ui_LlabelNutrient4;
-void ui_event_ButtonHome4( lv_event_t * e);
-extern lv_obj_t *ui_ButtonHome4;
-extern lv_obj_t *ui_LabelHome4;
-extern lv_obj_t *ui_LabelMixTime2;
-void ui_event_TextAreaMixTime2( lv_event_t * e);
-extern lv_obj_t *ui_TextAreaMixTime2;
-extern lv_obj_t *ui_LabelDoseA2;
-extern lv_obj_t *ui_LabelDoseB2;
-void ui_event_ButtonStart2( lv_event_t * e);
-extern lv_obj_t *ui_ButtonStart2;
-extern lv_obj_t *ui_LabelButtonStart2;
-void ui_event_ButtonAuto( lv_event_t * e);
-extern lv_obj_t *ui_ButtonAuto;
-extern lv_obj_t *ui_LabelAuto;
-void ui_event_TextAreaDoseA( lv_event_t * e);
-extern lv_obj_t *ui_TextAreaDoseA;
-void ui_event_TextAreaDoseB( lv_event_t * e);
-extern lv_obj_t *ui_TextAreaDoseB;
+extern lv_obj_t *ui_Keyboard1;
 extern lv_obj_t *ui____initial_actions0;
 
 LV_IMG_DECLARE( ui_img_water_tank_png);   // assets/water_tank.png
 
-
-LV_FONT_DECLARE(ui_font_arial13);
 LV_FONT_DECLARE(ui_font_arial16B8);
-LV_FONT_DECLARE(ui_font_arial20);
 LV_FONT_DECLARE(ui_font_arial20B8);
 LV_FONT_DECLARE(ui_font_arial30B8);
-LV_FONT_DECLARE(ui_font_arial40);
-LV_FONT_DECLARE(ui_font_arialceb16);
-
-
-
 
 void ui_init(void);
 
