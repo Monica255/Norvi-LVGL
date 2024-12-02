@@ -35,7 +35,7 @@ void readRhTempNonBlocking() {
             if (millis() - lastReadTime2 >= readInterval) {
                 lastReadTime2 = millis();
                 adc1_2 = ads2.readADC_SingleEnded(1); 
-                readState = READ_CONVERT;
+                readState = READ_ADC2;
             }
             break;
 
