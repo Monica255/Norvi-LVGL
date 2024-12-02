@@ -96,7 +96,6 @@ void initWiFi() {
     delay(1000);
   }
   Serial.println(WiFi.localIP());
-  Serial.println();
 }
 
 
@@ -197,11 +196,11 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
       /*Set the coordinates*/
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
-      Serial.print( "Data x :" );
-      Serial.println( touch_last_x );
+      // Serial.print( "Data x :" );
+      // Serial.println( touch_last_x );
 
-      Serial.print( "Data y :" );
-      Serial.println( touch_last_y );
+      // Serial.print( "Data y :" );
+      // Serial.println( touch_last_y );
     }
     else if (touch_released())
     {
@@ -301,10 +300,10 @@ void startManualNutrient(lv_event_t * e)
 	// Your code here
 }
 
-void startAutoNutrient(lv_event_t * e)
-{
-	// Your code here
-}
+// void startAutoNutrient(lv_event_t * e)
+// {
+// 	// Your code here
+// }
 
 
 void setup()
@@ -374,7 +373,7 @@ void setup()
   devices.push_back({GPIO6, 0, 0x00003, ui_ButtonONOFF3, "pompa_3/state"});
   devices.push_back({GPIO5, 0, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"});
 
-  Serial.println( "Setup done" );
+  // Serial.println( "Setup done" );
   Wire.begin(SDA, SCL);
 
   if (!ads2.begin(0x49)) {
@@ -412,7 +411,7 @@ void loop() {
       reconnectWiFi();
       return; // Skip the rest of the loop if not connected
     }
-    Serial.println("WiFi connected. Running main code...");
+    // Serial.println("WiFi connected. Running main code...");
 
     if(!Firebase.ready()){
       initFirebase();
@@ -427,8 +426,9 @@ void loop() {
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 
     lv_label_set_text(ui_humidity, tempStr2);
-    lv_label_set_text_fmt(ui_ecValue, tempStr3);
-    lv_label_set_text_fmt(ui_phValue, tempStr4);
+    lv_label_set_text_fmt(ui_humidity, tempStr3);
+    lv_label_set_text_fmt(ui_ecValue, tempStr4);
+    lv_label_set_text_fmt(ui_phValue, tempStr5);
     lv_timer_handler();
     //lv_task_handler();
     delay(5);

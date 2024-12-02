@@ -15,27 +15,12 @@
 // 	// Your code here
 // }
 
-// void OnOffPompa3(lv_event_t * e)
-// {
-// 	// Your code here
-// }
-
-// void OnOffExh(lv_event_t * e)
-// {
-// 	// Your code here
-// }
-
 // void calculateAB(lv_event_t * e)
 // {
 // 	// Your code here
 // }
 
 // void startManualNutrient(lv_event_t * e)
-// {
-// 	// Your code here
-// }
-
-// void startAutoNutrient(lv_event_t * e)
 // {
 // 	// Your code here
 // }

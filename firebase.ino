@@ -141,6 +141,7 @@ const unsigned long fetchTimeout = 5000; // Timeout duration for fetching data
 bool isWaiting1 = false;
 bool isWaiting2 = false;  
 unsigned long startTime = 0;
+
 void fetchNutrientData() {
     switch (fetchNutrientState) {
         case FETCH_IDLE:
@@ -148,7 +149,6 @@ void fetchNutrientData() {
             break;
 
         case FETCH_INIT_NUT:
-            // Start the fetch process
             Serial.println("Fetching nutrient data...");
             if (Firebase.getJSON(fbdo, pathNutrient)) {
                 fetchNutStartTime = millis();
@@ -160,7 +160,6 @@ void fetchNutrientData() {
             break;
 
         case FETCH_WAIT_NUT:
-            // Wait for response from Firebase or timeout
             if (millis() - fetchNutStartTime >= fetchTimeout) {
                 Serial.println("Timeout waiting for data.");
                 fetchNutrientState = FETCH_DONE_NUT;  // Timeout after 5 seconds
@@ -170,7 +169,6 @@ void fetchNutrientData() {
             break;
 
         case FETCH_GET_JSON:
-            // Get JSON data from Firebase and check its type
             if (fbdo.dataType() == "json") {
                 json2 = fbdo.jsonObject();
                 fetchNutrientState = FETCH_CONVERT_TO_NUTRIENT; // Move to convert data into nutrient object
@@ -181,7 +179,6 @@ void fetchNutrientData() {
             break;
 
         case FETCH_CONVERT_TO_NUTRIENT:
-            // Extract data from the JSON
             if (json.get(jsonData, "target_ec") && jsonData.type == "float") {
                 nutrient.target_ec = jsonData.floatValue;
             }
@@ -227,23 +224,15 @@ void fetchNutrientData() {
             break;
 
         case WAIT_PROCESS:
-            if (ec >= nutrient.target_ec) {
-                Serial.println("EC target reached. Stopping...");
-                OnOffDevice(false, devices[3]); // Turn OFF device 3
-                isWaiting2 = false;              // Reset timing state
+            if (ec >= nutrient.target_ec || (isWaiting2 && millis() - startTime >= nutrient.times * 1000)) {
+                OnOffDevice(false, devices[3]); 
+                isWaiting2 = false; 
                 updateNutrientState("done");
                 fetchNutrientState = FETCH_DONE_NUT;
             }
 
-            if (isWaiting2 && millis() - startTime >= nutrient.times * 1000) {
-                OnOffDevice(false, devices[3]); // Stop device 3 after the time
-                isWaiting2 = false;              // Reset waiting state
-                updateNutrientState("done");
-                fetchNutrientState = FETCH_DONE_NUT;
-            }
 
         case FETCH_DONE_NUT:
-            // Reset state for next fetch
             fetchNutrientState = FETCH_INIT_NUT;
             break;
     }
@@ -292,7 +281,7 @@ void updateFirebaseState(const String &path, int state)
 {
     Serial.println("Firebase updated start!");
     if (Firebase.setInt(fbdo, pathControlling+"/"+path, state)) {
-        Serial.println("Firebase updated successfully! "+ String(state));
+        // Serial.println("Firebase updated successfully! "+ String(state));
     } else {
         Serial.println("Failed to update Firebase: " + String(fbdo.errorReason()));
     }
