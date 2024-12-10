@@ -44,24 +44,29 @@ void readFirebase(){
 
 void get_status() {
     fetchControllingDataNonBlocking();
-    // fetchNutrientData();
+    fetchNutrientData();
+    observeNutrientStatus();
 }
 
 
 unsigned long fetchStartTime = 0;
-#define firebaseWaitingTime 3000
-
+#define firebaseWaitingTime 4000
+#define READ_INTERVAL 1500 
 void fetchControllingDataNonBlocking() {
     switch (fetchState) {
         case IDLE:
             Serial.println("idlee");
-;        case FETCH_INIT:
-            if (Firebase.getJSON(fbdo, pathControlling)) {
-                fetchState = FETCH_WAIT;
-                fetchStartTime = millis();
-            } else {
-                Serial.println("Failed to start fetching: " + String(fbdo.errorReason()));
-                fetchState = FETCH_DONE;
+            break;
+        case FETCH_INIT:
+            if (millis() - fetchStartTime >= READ_INTERVAL) {
+                //Serial.println("init fetch con data");
+                if (Firebase.getJSON(fbdo, pathControlling)) {
+                    fetchState = FETCH_WAIT;
+                    fetchStartTime = millis();
+                } else {
+                    Serial.println("Failed to start fetching: " + String(fbdo.errorReason()));
+                    fetchState = FETCH_DONE;
+                }
             }
             break;
 
@@ -82,13 +87,13 @@ void fetchControllingDataNonBlocking() {
                 for (auto &device : devices) {
                     if (json.get(jsonData, device.path)) {
                         device.firebase_state = jsonData.intValue;
-                        //Serial.printf("%s: %d\n", device.path, device.firebase_state);
-                        
+                        Serial.printf("%s: %d\n", device.path, device.firebase_state);
+                        fetchState = UPDATE_DEVICE;
                     } else {
-                        Serial.printf("Failed to get %s\n", device.path);
+                        //Serial.printf("Failed to get %s\n", device.path);
+                        fetchState = FETCH_DONE;
                     }
                 }
-                fetchState = UPDATE_DEVICE;
             } else {
                 Serial.println("Data type is not JSON.");
                 fetchState = FETCH_DONE;
@@ -120,117 +125,88 @@ void fetchControllingDataNonBlocking() {
 }
 
 
-enum FetchNutrientState {
-    FETCH_IDLE,
-    FETCH_INIT_NUT,
-    FETCH_WAIT_NUT,
-    FETCH_GET_JSON,
-    FETCH_CONVERT_TO_NUTRIENT,
-    FETCH_CHECK_STATUS,
-    WAIT_PROCESS,
-    FETCH_DONE_NUT
+enum ObserveStatusState {
+    OBSERVE_IDLE,
+    OBSERVE_CHECK_STATUS,
+    OBSERVE_WAIT_PROCESS
 };
 
-FirebaseJson json2;            // Declare outside the switch
-FirebaseJsonData jsonData;    // Declare outside the switch
+ObserveStatusState observeStatusState = OBSERVE_CHECK_STATUS;
 
-
-FetchNutrientState fetchNutrientState = FETCH_INIT_NUT;
 unsigned long fetchNutStartTime = 0;
-const unsigned long fetchTimeout = 5000; // Timeout duration for fetching data
+const unsigned long fetchTimeout = 5000;
 bool isWaiting1 = false;
 bool isWaiting2 = false;  
 unsigned long startTime = 0;
 
+FirebaseData fbdo2;
+FirebaseJson json2;            
+FirebaseJsonData jsonData;
+
+#define READ_INTERVAL_NUT 1000
+
+
 void fetchNutrientData() {
     switch (fetchNutrientState) {
         case FETCH_IDLE:
-            Serial.println("idlee");
             break;
 
         case FETCH_INIT_NUT:
-            Serial.println("Fetching nutrient data...");
-            if (Firebase.getJSON(fbdo, pathNutrient)) {
-                fetchNutStartTime = millis();
-                fetchNutrientState = FETCH_WAIT_NUT; // Move to waiting for response
-            } else {
-                Serial.println("Failed to fetch JSON: " + fbdo.errorReason());
-                fetchNutrientState = FETCH_DONE_NUT;
+            if (millis() - fetchNutStartTime >= READ_INTERVAL_NUT) {
+                //Serial.println("init fetch nut data");
+                if (Firebase.getJSON(fbdo2, pathNutrient)) {
+                    fetchNutStartTime = millis();
+                    fetchNutrientState = FETCH_WAIT_NUT;
+                } else {
+                    Serial.println("Failed to fetch JSON: " + fbdo2.errorReason());
+                    fetchNutrientState = FETCH_DONE_NUT;
+                }
             }
             break;
 
         case FETCH_WAIT_NUT:
             if (millis() - fetchNutStartTime >= fetchTimeout) {
                 Serial.println("Timeout waiting for data.");
-                fetchNutrientState = FETCH_DONE_NUT;  // Timeout after 5 seconds
-            } else if (fbdo.dataAvailable()) {
-                fetchNutrientState = FETCH_GET_JSON; // Move to getting the JSON data
+                fetchNutrientState = FETCH_DONE_NUT;
+            } else if (fbdo2.dataAvailable()) {
+                fetchNutrientState = FETCH_GET_JSON;
             }
             break;
 
         case FETCH_GET_JSON:
-            if (fbdo.dataType() == "json") {
-                json2 = fbdo.jsonObject();
-                fetchNutrientState = FETCH_CONVERT_TO_NUTRIENT; // Move to convert data into nutrient object
+            if (fbdo2.dataType() == "json") {
+                json2 = fbdo2.jsonObject();
+                fetchNutrientState = FETCH_CONVERT_TO_NUTRIENT;
             } else {
                 Serial.println("Data is not JSON.");
-                fetchNutrientState = FETCH_DONE_NUT; // Invalid data type, move to done state
+                fetchNutrientState = FETCH_DONE_NUT;
             }
             break;
 
         case FETCH_CONVERT_TO_NUTRIENT:
-            if (json.get(jsonData, "target_ec") && jsonData.type == "float") {
-                nutrient.target_ec = jsonData.floatValue;
+            if (json2.get(jsonData, "target_ec") && jsonData.type == "int") {
+                nutrient.target_ec = jsonData.intValue;
             }
-
-            if (json.get(jsonData, "calc_A") && jsonData.type == "float") {
-                nutrient.calc_A = jsonData.floatValue;
+            if (json2.get(jsonData, "calc_A") && jsonData.type == "int") {
+                nutrient.calc_A = jsonData.intValue;
             }
-
-            if (json.get(jsonData, "calc_B") && jsonData.type == "float") {
-                nutrient.calc_B = jsonData.floatValue;
+            if (json2.get(jsonData, "calc_B") && jsonData.type == "int") {
+                nutrient.calc_B = jsonData.intValue;
             }
-
-            if (json.get(jsonData, "status") && jsonData.type == "string") {
+            if (json2.get(jsonData, "status") && jsonData.type == "string") {
                 nutrient.status = jsonData.stringValue;
+                observeStatusState = OBSERVE_CHECK_STATUS;
             }
-
-            if (json.get(jsonData, "times") && jsonData.type == "float") {
-                nutrient.times = jsonData.floatValue;
+            if (json2.get(jsonData, "time") && jsonData.type == "int") {
+                nutrient.times = jsonData.intValue;
             }
+            Serial.printf("Target EC: %d, Calc A: %d, Calc B: %d, Status: %s, Time: %d\n",
+                          nutrient.target_ec, nutrient.calc_A, nutrient.calc_B, 
+                          nutrient.status.c_str(), nutrient.times);
+            
 
-            // Debugging output
-            Serial.printf("Target EC: %.2f, Calc A: %.2f, Calc B: %.2f, Status: %s, Time: %.2f\n",
-                        nutrient.target_ec, nutrient.calc_A, nutrient.calc_B, 
-                        nutrient.status.c_str(), nutrient.times);
-
-            fetchNutrientState = FETCH_CHECK_STATUS; // Move to check status stage
+            fetchNutrientState = FETCH_DONE_NUT;
             break;
-
-        case FETCH_CHECK_STATUS:
-            // Check the status and trigger actions
-            if (nutrient.status == "start") {
-                startNutrient();
-            } else if (nutrient.status == "on progress") {
-                handleProgressState();
-                fetchNutrientState = WAIT_PROCESS;
-            } else if (nutrient.status == "stop") {
-                stopDevices();
-                fetchNutrientState = FETCH_DONE_NUT;
-            } else{
-                fetchNutrientState = FETCH_DONE_NUT;
-            }
-             // Done processing, reset state
-            break;
-
-        case WAIT_PROCESS:
-            if (ec >= nutrient.target_ec || (isWaiting2 && millis() - startTime >= nutrient.times * 1000)) {
-                OnOffDevice(false, devices[3]); 
-                isWaiting2 = false; 
-                updateNutrientState("done");
-                fetchNutrientState = FETCH_DONE_NUT;
-            }
-
 
         case FETCH_DONE_NUT:
             fetchNutrientState = FETCH_INIT_NUT;
@@ -238,13 +214,53 @@ void fetchNutrientData() {
     }
 }
 
+#define READ_INTERVAL_STATUS 500
+unsigned long checkStatusStartTime = 0;
+
+void observeNutrientStatus() {
+    switch (observeStatusState) {
+        case OBSERVE_IDLE:
+            break;
+
+        case OBSERVE_CHECK_STATUS:
+            if (millis() - checkStatusStartTime >= READ_INTERVAL_STATUS) {
+                //Serial.println("obsv cek status");
+                checkStatusStartTime = millis();
+                if (nutrient.status == "start") {
+                    startNutrient();
+                } else if (nutrient.status == "on progress") {
+                    handleProgressState();
+                    observeStatusState = OBSERVE_WAIT_PROCESS;
+                } else if (nutrient.status == "stop") {
+                    stopDevices();
+                    observeStatusState = OBSERVE_IDLE;
+                }
+            }
+            
+            break;
+
+        case OBSERVE_WAIT_PROCESS:
+            //Serial.println("wait process");
+            if (ec >= nutrient.target_ec || (isWaiting2 && millis() - startTime >= nutrient.times * 1000)) {
+                OnOffDevice(false, devices[2]);
+                isWaiting2 = false;
+                startTime = 0;
+                updateNutrientState("done");
+                nutrient.status = "done";
+                observeStatusState = OBSERVE_CHECK_STATUS;
+            }
+            break;
+    }
+}
+
 void handleProgressState() {
+    //Serial.println("Waiting pompa 2 to off");
     bool gpio7State = readGPIOState(GPIO7);
     if (!gpio7State && isWaiting1) {
         isWaiting1=false;
-        Serial.println("GPIO7 is OFF. Starting nutrient process...");
+        //Serial.println("GPIO7 is OFF. Starting nutrient process...");
         if (!isWaiting2) {
-            OnOffDevice(true, devices[3]);  // Start device 3
+            OnOffDevice(true, devices[2]);  // Start device 3
             startTime = millis();           // Record the start time
             isWaiting2 = true;              
         }
@@ -252,15 +268,23 @@ void handleProgressState() {
 }
 
 void stopDevices() {
-    OnOffDevice(false, devices[2]);  // Stop device 2
-    OnOffDevice(false, devices[3]);  // Stop device 3
+    bool gpio7State = readGPIOState(GPIO7);
+    if (gpio7State){
+        OnOffDevice(false, devices[1]);
+    }
+    bool gpio6State = readGPIOState(GPIO6);
+    if (gpio6State){
+        OnOffDevice(false, devices[2]);
+    }
+
 }
 
 void startNutrient() {
     if (ec < nutrient.target_ec) {
         Serial.println("EC is below target, starting automation...");
         updateNutrientState("on progress");
-        OnOffDevice(true, devices[2]);  // Start device 2
+        nutrient.status = "on progress";
+        OnOffDevice(true, devices[1]);  // Start device 2
         isWaiting1 = true;
     } else {
         Serial.println("EC is already above the target.");
@@ -269,17 +293,32 @@ void startNutrient() {
 }
 
 void updateNutrientState(String state) {
-    if (Firebase.setString(fbdo, pathNutrient + "/status", state)) {
-        Serial.println("Firebase updated successfully!");
+    if (Firebase.setString(fbdo2, pathNutrient + "/status", state)) {
+        //Serial.println("Firebase updated successfully!");
     } else {
-        Serial.println("Failed to update Firebase: " + String(fbdo.errorReason()));
+        Serial.println("Failed to update Firebase: " + String(fbdo2.errorReason()));
+    }
+}
+FirebaseJson nutrientJson;
+void updateNutrientData(Nutrient nut) {
+    // Serialize the Nutrient struct to JSON
+    nutrientJson.clear();
+    nutrientJson.set("target_ec", nut.target_ec);
+    nutrientJson.set("calc_A", nut.calc_A);
+    nutrientJson.set("calc_B", nut.calc_B);
+    nutrientJson.set("status", nut.status);
+    nutrientJson.set("time", nut.times);
+
+    // Push the JSON object to Firebase
+    if (Firebase.setJSON(fbdo, pathNutrient, nutrientJson)) {
+        Serial.println("Nutrient data updated successfully.");
+    } else {
+        Serial.println("Failed to update nutrient data: " + fbdo.errorReason());
     }
 }
 
-
 void updateFirebaseState(const String &path, int state)
 {
-    Serial.println("Firebase updated start!");
     if (Firebase.setInt(fbdo, pathControlling+"/"+path, state)) {
         // Serial.println("Firebase updated successfully! "+ String(state));
     } else {
@@ -290,7 +329,7 @@ void updateFirebaseState(const String &path, int state)
 void sent_datarhtemp() {
   json.set("temperatur", temperatureC);
   json.set("humidity", RH);
-  json.set("kelembaban_tanah", valSoil);
+  // json.set("kelembaban_tanah", valSoil);
   Firebase.setJSON(fbdo, pathMonitoring, json);
 }
 

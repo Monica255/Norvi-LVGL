@@ -311,7 +311,7 @@ lv_obj_set_height( ui_LabelExh, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_LabelExh, 0 );
 lv_obj_set_y( ui_LabelExh, -50 );
 lv_obj_set_align( ui_LabelExh, LV_ALIGN_CENTER );
-lv_label_set_text(ui_LabelExh,"Dosing\nPump");
+lv_label_set_text(ui_LabelExh,"Exhaust\nFan");
 lv_obj_set_style_text_align(ui_LabelExh, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 ui_ButtonONOFF4 = lv_btn_create(ui_PanelExh);
