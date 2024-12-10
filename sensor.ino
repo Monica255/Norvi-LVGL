@@ -19,7 +19,7 @@ float current_mA = 0.0;
 void readRhTempNonBlocking() {
     static unsigned long lastReadTime = 0;
     static unsigned long lastReadTime2 = 0;
-    static unsigned long lastReadTime3 = 0;
+    // static unsigned long lastReadTime3 = 0;
     const unsigned long readInterval = 1000; // Adjust as necessary for ADC sampling time
 
     switch (readState) {
@@ -35,27 +35,27 @@ void readRhTempNonBlocking() {
             if (millis() - lastReadTime2 >= readInterval) {
                 lastReadTime2 = millis();
                 adc1_2 = ads2.readADC_SingleEnded(1); 
-                readState = READ_ADC2;
-            }
-            break;
-
-        case READ_ADC2:
-            if (millis() - lastReadTime2 >= readInterval) {
-                lastReadTime2 = millis();
-                adc2_2 = ads2.readADC_SingleEnded(2); 
                 readState = READ_CONVERT;
             }
             break;
+
+        // case READ_ADC2:
+        //     if (millis() - lastReadTime3 >= readInterval) {
+        //         lastReadTime3 = millis();
+        //         adc2_2 = ads2.readADC_SingleEnded(2); 
+        //         readState = READ_CONVERT;
+        //     }
+        //     break;
 
         case READ_CONVERT:
             current_mA = convertADCToCurrent(adc1_2);
             temperatureC = convertCurrentToTemperature(current_mA);
             RH = convertADCToRH(adc0_2);
-            valSoil = convertADCToRH(adc2_2);
+            valSoil = adc2_2;
 
             dtostrf(temperatureC, 6, 1, tempStr);
             dtostrf(RH, 6, 0, tempStr2);
-            dtostrf(valSoil, 6, 0, tempStr3);
+            // dtostrf(valSoil, 6, 0, tempStr3);
             readState = READ_DONE;
             break;
 
@@ -74,12 +74,12 @@ float convertADCToRH(int16_t adcValue) {
     float V_out = (float)adcValue / ADC_MAX_VALUE * V_REF;
     float RH = (V_out / V_MAX) * 100.0;
 
-    return RH;
+    return round(RH * 10) / 10.0;
 }
 
 float convertCurrentToTemperature(float current_mA) {
-    float temperature = (current_mA-4.0) * (120.0 / 16.0) - 40.0; // based on your temperature range
-    return temperature;
+    float temperature = (current_mA - 4.0) * (120.0 / 16.0) - 40.0; // Calculate temperature
+    return round(temperature * 10) / 10.0; // Round to 1 decimal
 }
 
 float convertADCToCurrent(int16_t adcValue) {
@@ -142,7 +142,7 @@ unsigned long sensorStartTime = 0; // Time when sensor read started
 byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
 byte byteResponse[SENSOR_FRAME_SIZE];
 int bytesRead = 0;
-#define READ_INTERVAL 500 
+#define READ_INTERVAL 1300 
 int ec2,ph2;
 
 void readSensorNonBlocking() {
@@ -161,7 +161,7 @@ void readSensorNonBlocking() {
             break;
 
         case WAIT_FOR_RESPONSE:
-            Serial.println("waiting sensor data");
+            ///Serial.println("waiting sensor data");
             if (millis() - sensorStartTime >= SENSOR_WAIT_TIME) {
                 Serial.println("Sensor response timeout.");
                 sensorReadState = READ_COMPLETE;  // Move to complete state
@@ -198,15 +198,15 @@ void readSensorNonBlocking() {
             }
             Serial.println(responseString); // Print response for debugging
             sensorReadState = SAVE_SENSOR_DATA; // Move to completed state
-
+            break;
         case SAVE_SENSOR_DATA:
-
             ec2 = sensorValue(byteResponse[13], byteResponse[14]); 
             sensorReadState = SAVE_SENSOR_DATA2;
-
+            break;
         case SAVE_SENSOR_DATA2:
             ph2 = sensorValue(byteResponse[11], byteResponse[12]) * 0.01; 
             sensorReadState = CHECK_DATA;
+            break;
         case CHECK_DATA:
             bytesRead = 0;
             if(ec2!=ec || ph2!=ph){
@@ -218,12 +218,13 @@ void readSensorNonBlocking() {
             }else {
                 sensorReadState = READ_COMPLETE;
             }
-
+            break;
         case SAVE_FIREBASE:
             sent_dataecph();
             sensorReadState = READ_COMPLETE;
+            break;
         case READ_COMPLETE:
-            Serial.println("completed");
+            //Serial.println("completed");
             sensorReadState = INIT_SENSOR_READ;
             break;
     }
