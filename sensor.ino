@@ -7,64 +7,64 @@ enum ReadState {
     READ_ADC1,
     READ_ADC2,
     READ_CONVERT,
+    CHECK_DATA2,
     READ_DONE
 };
 
 ReadState readState = READ_ADC0;
 int16_t adc0_2 = 0;
 int16_t adc1_2 = 0;
-int16_t adc2_2 = 0;
 float current_mA = 0.0;
+static unsigned long lastReadTime = 0;
+const unsigned long readInterval = 500;
+float temperatureC2, RH2;
 
 void readRhTempNonBlocking() {
-    static unsigned long lastReadTime = 0;
-    static unsigned long lastReadTime2 = 0;
-    // static unsigned long lastReadTime3 = 0;
-    const unsigned long readInterval = 1000; // Adjust as necessary for ADC sampling time
+        switch (readState) {
+            case READ_ADC0:
+                if (millis() - lastReadTime >= readInterval) {
+                    lastReadTime = millis();
+                    adc0_2 = ads2.readADC_SingleEnded(0);
+                    readState = READ_ADC1;
+                }
+                break;
 
-    switch (readState) {
-        case READ_ADC0:
-            if (millis() - lastReadTime >= readInterval) {
-                lastReadTime = millis();
-                adc0_2 = ads2.readADC_SingleEnded(0);
-                readState = READ_ADC1;
-            }
-            break;
+            case READ_ADC1:
+                if (millis() - lastReadTime >= readInterval) {
+                    lastReadTime = millis();
+                    adc1_2 = ads2.readADC_SingleEnded(1);
+                    readState = READ_CONVERT;
+                }
+                break;
 
-        case READ_ADC1:
-            if (millis() - lastReadTime2 >= readInterval) {
-                lastReadTime2 = millis();
-                adc1_2 = ads2.readADC_SingleEnded(1); 
-                readState = READ_CONVERT;
-            }
-            break;
+            case READ_CONVERT:
+                current_mA = convertADCToCurrent(adc1_2);
+                temperatureC2 = convertCurrentToTemperature(current_mA);
+                RH2 = convertADCToRH(adc0_2);
+                readState = CHECK_DATA2;
+                break;
 
-        // case READ_ADC2:
-        //     if (millis() - lastReadTime3 >= readInterval) {
-        //         lastReadTime3 = millis();
-        //         adc2_2 = ads2.readADC_SingleEnded(2); 
-        //         readState = READ_CONVERT;
-        //     }
-        //     break;
+            case CHECK_DATA2:
+                if(temperatureC2!=temperatureC || RH2!=RH){
+                    temperatureC=temperatureC2;
+                    RH=RH2;
+                    dtostrf(temperatureC, 6, 1, tempStr);
+                    dtostrf(RH, 6, 1, tempStr2);
+                    readState = READ_DONE;
+                }else {
+                    readState = READ_ADC0;
+                }
+                break;
 
-        case READ_CONVERT:
-            current_mA = convertADCToCurrent(adc1_2);
-            temperatureC = convertCurrentToTemperature(current_mA);
-            RH = convertADCToRH(adc0_2);
-            valSoil = adc2_2;
+            case READ_DONE:
+                if (wasWiFiConnected) {
+                    sent_datarhtemp();
+                }  
+                readState = READ_ADC0;
+                break;
+        }
+    
 
-            dtostrf(temperatureC, 6, 1, tempStr);
-            dtostrf(RH, 6, 0, tempStr2);
-            // dtostrf(valSoil, 6, 0, tempStr3);
-            readState = READ_DONE;
-            break;
-
-        case READ_DONE:
-            sent_datarhtemp();
-            readState = READ_ADC0;
-            // Reading completed, reset or handle data as needed
-            break;
-    }
 }
 
 float convertADCToRH(int16_t adcValue) {
@@ -100,58 +100,65 @@ bool readGPIOState(uint8_t gpio) {
     return (inputState & gpio) != 0;  // Check if the specified GPIO bit is set
 }
 
-// SensorData readSensor(byte* command, size_t commandSize) {
-//   while (Serial1.available()) {
-//       Serial1.read();  // Clear any junk data from the buffer
-//   }
-  
-//   Serial1.write(command, commandSize);
 
-//   unsigned long resptime = millis();
-//   while ((Serial1.available() < sensorFrameSize) && ((millis() - resptime) < sensorWaitingTime)) {
-//     delay(1);
-//   }
-  
-//   String response = "";
-//   int bytesRead = 0;
-//   while (Serial1.available() && bytesRead < sensorFrameSize) {
-//     byteResponse[bytesRead++] = Serial1.read();
-//   }
-
-//   String responseString;
-//   for (int j = 0; j < sensorFrameSize; j++) {
-//     responseString += byteResponse[j] < 0x10 ? " 0" : " ";
-//     responseString += String(byteResponse[j], HEX);
-//     responseString.toUpperCase();
-//   }
-//   Serial.println(responseString);
-
-//   SensorData data;
-//   data.ph = sensorValue(byteResponse[11], byteResponse[12]) * 0.01;
-//   data.ec = sensorValue(byteResponse[13], byteResponse[14]);
-//   data.temperature = sensorValue(byteResponse[15], byteResponse[16]) * 0.1;
-
-//   return data;
-// } 
-
-#define SENSOR_WAIT_TIME 5000  // Maximum wait time for response in milliseconds
+#define SENSOR_WAIT_TIME 2000  // Maximum wait time for response in milliseconds
 #define SENSOR_FRAME_SIZE 19   // Size of the data frame from the sensor
 
-//unsigned long lastReadTime = 0; // Last time data was requested
+
+
 unsigned long sensorStartTime = 0; // Time when sensor read started
 byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
 byte byteResponse[SENSOR_FRAME_SIZE];
 int bytesRead = 0;
 #define READ_INTERVAL 1300 
-int ec2,ph2;
+int ec2,ph2,tp2;
+
+void readSensor() {
+  byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
+  byte byteResponse[SENSOR_FRAME_SIZE];
+
+  while (Serial1.available()) {
+      Serial1.read();  // Clear any junk data from the buffer
+  }
+  
+  Serial1.write(command, sizeof(command));
+
+  unsigned long resptime = millis();
+  while ((Serial1.available() < SENSOR_FRAME_SIZE) && ((millis() - resptime) < SENSOR_WAIT_TIME)) {
+    delay(1);
+  }
+  
+  String response = "";
+  int bytesRead = 0;
+  while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE) {
+    byteResponse[bytesRead++] = Serial1.read();
+  }
+
+  String responseString;
+  for (int j = 0; j < sensorFrameSize; j++) {
+    responseString += byteResponse[j] < 0x10 ? " 0" : " ";
+    responseString += String(byteResponse[j], HEX);
+    responseString.toUpperCase();
+  }
+  Serial.println(responseString);
+
+  SensorData data;
+  ph = sensorValue(byteResponse[11], byteResponse[12]) * 0.01;
+  ec = sensorValue(byteResponse[13], byteResponse[14]);
+  tp = sensorValue(byteResponse[15], byteResponse[16]) * 0.1;
+  dtostrf(tp, 6, 0, tempStr3);
+  dtostrf(ec, 6, 0, tempStr4);
+  dtostrf(ph, 6, 0, tempStr5);
+} 
 
 void readSensorNonBlocking() {
-     static String responseString = "";
+    static String responseString = "";
     switch (sensorReadState) {
         case INIT_SENSOR_READ:
             if (millis() - sensorStartTime >= READ_INTERVAL) {
+                // Serial.println("Read sensor data");
                 while (Serial1.available()) {
-                    Serial1.read();  // Clear any junk data from the buffer
+                    Serial1.read();  
                 }
                 Serial1.write(command, sizeof(command)); // Send the command
                 sensorStartTime = millis(); // Start the timer
@@ -161,7 +168,7 @@ void readSensorNonBlocking() {
             break;
 
         case WAIT_FOR_RESPONSE:
-            ///Serial.println("waiting sensor data");
+            // Serial.println("waiting sensor data");
             if (millis() - sensorStartTime >= SENSOR_WAIT_TIME) {
                 Serial.println("Sensor response timeout.");
                 sensorReadState = READ_COMPLETE;  // Move to complete state
@@ -171,6 +178,7 @@ void readSensorNonBlocking() {
             break;
 
         case READ_SENSOR_DATA:
+            // Serial.println("read sensor data");
             while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE / 2) {
                 byteResponse[bytesRead++] = Serial1.read();
             }
@@ -180,11 +188,11 @@ void readSensorNonBlocking() {
             break;
 
         case READ_SENSOR_DATA_CONT:
+            
             while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE) {
                 byteResponse[bytesRead++] = Serial1.read();
             }
 
-            // Check if the full frame is read
             if (bytesRead == SENSOR_FRAME_SIZE) {
                 sensorReadState = PROCESS_SENSOR_DATA; // Move to processing state
             }
@@ -205,13 +213,19 @@ void readSensorNonBlocking() {
             break;
         case SAVE_SENSOR_DATA2:
             ph2 = sensorValue(byteResponse[11], byteResponse[12]) * 0.01; 
+            sensorReadState = SAVE_SENSOR_DATA3;
+            break;
+        case SAVE_SENSOR_DATA3:
+            tp2 = sensorValue(byteResponse[15], byteResponse[16]) * 0.1; 
             sensorReadState = CHECK_DATA;
             break;
         case CHECK_DATA:
             bytesRead = 0;
-            if(ec2!=ec || ph2!=ph){
+            if(ec2!=ec || ph2!=ph || tp2!= tp){
                 ec=ec2;
                 ph=ph2;
+                tp=tp2;
+                dtostrf(tp, 6, 0, tempStr3);
                 dtostrf(ec, 6, 0, tempStr4);
                 dtostrf(ph, 6, 0, tempStr5);
                 sensorReadState = SAVE_FIREBASE;
@@ -220,11 +234,12 @@ void readSensorNonBlocking() {
             }
             break;
         case SAVE_FIREBASE:
-            sent_dataecph();
+            if (wasWiFiConnected) {
+                sent_dataecph();
+            }
             sensorReadState = READ_COMPLETE;
             break;
         case READ_COMPLETE:
-            //Serial.println("completed");
             sensorReadState = INIT_SENSOR_READ;
             break;
     }

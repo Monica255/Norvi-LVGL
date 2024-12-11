@@ -20,7 +20,6 @@ extern "C" {
 // SCREEN: ui_screenHome
 void ui_screenHome_screen_init(void);
 extern lv_obj_t *ui_screenHome;
-extern lv_obj_t *ui_ImageWaterTank;
 extern lv_obj_t *ui_panelPH;
 extern lv_obj_t *ui_LabelPHValue;
 extern lv_obj_t *ui_phValue;
@@ -31,10 +30,13 @@ extern lv_obj_t *ui_ecValue1;
 extern lv_obj_t *ui_panelSensor;
 extern lv_obj_t *ui_LabelTemp;
 extern lv_obj_t *ui_LabelHumidity;
+extern lv_obj_t *ui_labelSoil;
 extern lv_obj_t *ui_temp;
 extern lv_obj_t *ui_temp1;
 extern lv_obj_t *ui_humidity;
 extern lv_obj_t *ui_humidity1;
+extern lv_obj_t *ui_Soil_Moisture;
+extern lv_obj_t *ui_Soil_Moisture1;
 void ui_event_ButtonControlling1( lv_event_t * e);
 extern lv_obj_t *ui_ButtonControlling1;
 extern lv_obj_t *ui_LabelControlling1;
@@ -43,6 +45,10 @@ extern lv_obj_t *ui_ButtonNutrient1;
 extern lv_obj_t *ui_LabelNutrient1;
 extern lv_obj_t *ui_ButtonHome1;
 extern lv_obj_t *ui_LabelHome1;
+void ui_event_ButtonWifi( lv_event_t * e);
+extern lv_obj_t *ui_ButtonWifi;
+extern lv_obj_t *ui_LabelWifi1;
+extern lv_obj_t *ui_LabelWifi2;
 // SCREEN: ui_screenControlling
 void ui_screenControlling_screen_init(void);
 extern lv_obj_t *ui_screenControlling;
@@ -113,14 +119,9 @@ extern lv_obj_t *ui_LabelButtonStart;
 extern lv_obj_t *ui_Keyboard1;
 extern lv_obj_t *ui____initial_actions0;
 
-LV_IMG_DECLARE( ui_img_water_tank_png);   // assets/water_tank.png
 
 
 
-
-LV_FONT_DECLARE(ui_font_arial16B8);
-LV_FONT_DECLARE(ui_font_arial20B8);
-LV_FONT_DECLARE(ui_font_arial30B8);
 
 void ui_init(void);
 

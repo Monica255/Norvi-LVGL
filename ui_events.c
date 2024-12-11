@@ -5,12 +5,27 @@
 
 // #include "ui.h"
 
+// void connectWifi(lv_event_t * e)
+// {
+// 	// Your code here
+// }
+
 // void OnOffPompa1(lv_event_t * e)
 // {
 // 	// Your code here
 // }
 
 // void OnOffPompa2(lv_event_t * e)
+// {
+// 	// Your code here
+// }
+
+// void OnOffPompa3(lv_event_t * e)
+// {
+// 	// Your code here
+// }
+
+// void OnOffExh(lv_event_t * e)
 // {
 // 	// Your code here
 // }

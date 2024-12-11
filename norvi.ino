@@ -44,6 +44,7 @@ Adafruit_ADS1115 ads2;
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
+lv_obj_t *spinner;
 
 #define sensorFrameSize  19
 #define sensorWaitingTime 1500
@@ -52,7 +53,8 @@ Adafruit_ADS1115 ads2;
 
 struct DeviceState {
     int pin;              // GPIO pin
-    int firebase_state;       // Previous device state (replaces LED variables)
+    int firebase_state; 
+    int tempState;      // Previous device state (replaces LED variables)
     uint16_t coil;        // Coil address for Modbus communication
     lv_obj_t *uiButton;   // UI button to control the device
     const char *path;     // Firebase JSON path
@@ -71,12 +73,13 @@ DeviceState devices[] = {
 String uid, path, pathMonitoring, pathNutrient, pathControlling;
 float temperatureC, RH, valSoil;
 int  ph, ec;
+float tp;
 String nutrient_state= "idle";
 
 struct SensorData {
-  float ph;
+  int ph;
   int ec;
-  float temperature;
+  float tp;
 };
 
 struct Nutrient {
@@ -231,15 +234,15 @@ enum FetchState {
 };
 FetchState fetchState = FETCH_INIT;
 
-enum FetchNutrientState {
-    FETCH_IDLE,
-    FETCH_INIT_NUT,
-    FETCH_WAIT_NUT,
-    FETCH_GET_JSON,
-    FETCH_CONVERT_TO_NUTRIENT,
-    FETCH_DONE_NUT
-};
-FetchNutrientState fetchNutrientState = FETCH_INIT_NUT;
+// enum FetchNutrientState {
+//     FETCH_IDLE,
+//     FETCH_INIT_NUT,
+//     FETCH_WAIT_NUT,
+//     FETCH_GET_JSON,
+//     FETCH_CONVERT_TO_NUTRIENT,
+//     FETCH_DONE_NUT
+// };
+// FetchNutrientState fetchNutrientState = FETCH_INIT_NUT;
 
 
 enum SensorReadState {
@@ -251,6 +254,7 @@ enum SensorReadState {
     PROCESS_SENSOR_DATA,
     SAVE_SENSOR_DATA,
     SAVE_SENSOR_DATA2,
+    SAVE_SENSOR_DATA3,
     CHECK_DATA,
     SAVE_FIREBASE,
     READ_COMPLETE
@@ -258,44 +262,73 @@ enum SensorReadState {
 
 SensorReadState sensorReadState = INIT_SENSOR_READ;
 
-void OnOffDevice(bool is_on, DeviceState &device) {
+void reconnectWiFi(bool connect) {
+    if (connect) {
+        WiFi.disconnect(); // Disconnect any existing connection
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // Start connection
+
+        unsigned long startAttemptTime = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 6000) {
+            Serial.print('.');
+            delay(1000);
+        }
+    } else {
+        if (Firebase.ready()) {
+            disconnectFirebase();
+            Serial.println("Firebase disconnected");
+        }
+        WiFi.disconnect(); // Disconnect WiFi
+        Serial.println("WiFi disconnected.");
+    }
+}
+
+
+void connectWifi(lv_event_t * e)
+{
+  bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+	reconnectWiFi(is_on);
+}
+
+void OnOffDevice(bool is_on, int index) {
     int x;
     if (is_on) {
-        Serial.printf("%s is ON\n", device.path);
+        Serial.printf("%s is ON\n", devices[index].path);
         x = 1;
     } else {
-        Serial.printf("%s is OFF\n", device.path);
+        Serial.printf("%s is OFF\n", devices[index].path);
         x = 0;
     }
+
     sensorReadState = IDLE2;
     fetchState = IDLE;
-    fetchNutrientState = FETCH_IDLE;
-    writeOutput(device.pin, x);
-    updateFirebaseState(device.path, x);
-    result = node.writeSingleCoil(device.coil, x);
+    // fetchNutrientState = FETCH_IDLE;
+    writeOutput(devices[index].pin, x);
+    updateFirebaseDeviceState(index, x);
+    result = node.writeSingleCoil(devices[index].coil, x);
     fetchState = FETCH_INIT;
-    fetchNutrientState = FETCH_INIT_NUT;
+    // fetchNutrientState = FETCH_INIT_NUT;
     sensorReadState = INIT_SENSOR_READ;
 }
 
+
 void OnOffPompa1(lv_event_t *e) {
     bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-    OnOffDevice(is_on, devices[0]);
+    OnOffDevice(is_on, 0);
 }
 
 void OnOffPompa2(lv_event_t *e) {
     bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-    OnOffDevice(is_on, devices[1]);
+    OnOffDevice(is_on, 1);
 }
 
 void OnOffPompa3(lv_event_t *e) {
     bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-    OnOffDevice(is_on, devices[2]);
+    OnOffDevice(is_on, 2);
 }
 
 void OnOffExh(lv_event_t *e) {
     bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-    OnOffDevice(is_on, devices[3]);
+    OnOffDevice(is_on, 3);
 }
 
 void controlDevice(DeviceState &device ) {
@@ -307,64 +340,55 @@ void controlDevice(DeviceState &device ) {
     sensorReadState = INIT_SENSOR_READ;
 }
 
-
-// Global variable for ml conversion
 int ml = 10; // Example value, adjust as needed
-
 void calculateAB(lv_event_t * e)
 {
-    Serial.println("button clicked");
-    
-    // Get the object that triggered the event
-    lv_obj_t * obj = lv_event_get_target(e);
-    
-    // Get the text from the text area, convert to integer
-    const char * text = lv_textarea_get_text(obj);
+    const char * text = lv_textarea_get_text(ui_TextAreaMixTime);
     int inputValue = atoi(text);
-
-    // Perform the calculation
     int result = inputValue * ml;
-
-    // Set the calculated values to doseA and doseB text areas
-    lv_textarea_set_text(ui_doseA, String(result).c_str());
-    lv_textarea_set_text(ui_doseB, String(result).c_str());
+    Serial.println(String(result));
+    
+    char resultStr[16]; // Ensure enough space for the integer
+    dtostrf(result, 6, 0, resultStr);
+   
+    lv_label_set_text_fmt(ui_doseA, resultStr);
+    lv_label_set_text_fmt(ui_doseB, resultStr);
 }
 
 
-// Start manual nutrient mixing
 void startManualNutrient(lv_event_t * e) {
-    static Nutrient nutrient2;
+    // static Nutrient nutrient2;
 
-    // Check the current nutrient status
-    if (nutrient.status != "on progress") {
-        // Create new nutrient data
-        const char * ecTargetText = lv_textarea_get_text(ui_TextAreaECTarget);
-        const char * mixTimeText = lv_textarea_get_text(ui_TextAreaMixTime);
-        const char * calcAText = lv_textarea_get_text(ui_doseA);
-        const char * calcBText = lv_textarea_get_text(ui_doseB);
+    // // Check the current nutrient status
+    // if (nutrient.status != "on progress") {
+    //     // Create new nutrient data
+    //     const char * ecTargetText = lv_textarea_get_text(ui_TextAreaECTarget);
+    //     const char * mixTimeText = lv_textarea_get_text(ui_TextAreaMixTime);
+    //     const char * calcAText = lv_textarea_get_text(ui_doseA);
+    //     const char * calcBText = lv_textarea_get_text(ui_doseB);
 
-        nutrient2.target_ec = atoi(ecTargetText);
-        nutrient2.times = atoi(mixTimeText);
-        nutrient2.calc_A = atoi(calcAText);
-        nutrient2.calc_B = atoi(calcBText);
-        nutrient2.status = "start";
+    //     nutrient2.target_ec = atoi(ecTargetText);
+    //     nutrient2.times = atoi(mixTimeText);
+    //     nutrient2.calc_A = atoi(calcAText);
+    //     nutrient2.calc_B = atoi(calcBText);
+    //     nutrient2.status = "start";
 
-        nutrient.status = "start";
-        updateNutrientData(nutrient);
+    //     nutrient.status = "start";
+    //     updateNutrientData(nutrient);
 
-        // Update button text and color
-        lv_obj_set_style_text_color(ui_ButtonStart, lv_color_hex(0xFF0000), 0); // Set color to red
-        lv_label_set_text(ui_ButtonStart, "Stop");
-    } 
-    else if (nutrient.status == "on progress") {
-        // Stop the nutrient mixing
-        updateNutrientState("stop");
+    //     // Update button text and color
+    //     lv_obj_set_style_text_color(ui_ButtonStart, lv_color_hex(0xFF0000), 0); // Set color to red
+    //     lv_label_set_text(ui_ButtonStart, "Stop");
+    // } 
+    // else if (nutrient.status == "on progress") {
+    //     // Stop the nutrient mixing
+    //     updateNutrientState("stop");
 
-        // Update the status and button UI
-        nutrient.status = "stop";
-        lv_obj_set_style_text_color(ui_ButtonStart, lv_color_hex(0x00FF00), 0); // Set color to green
-        lv_label_set_text(ui_ButtonStart, "Start");
-    }
+    //     // Update the status and button UI
+    //     nutrient.status = "stop";
+    //     lv_obj_set_style_text_color(ui_ButtonStart, lv_color_hex(0x00FF00), 0); // Set color to green
+    //     lv_label_set_text(ui_ButtonStart, "Start");
+    // }
 }
 
 
@@ -432,10 +456,13 @@ void setup()
   lcd->fillScreen(BLUE);
   delay(800);
 #endif
-  devices.push_back({GPIO8, 0, 0x00001, ui_ButtonONOFF1, "pompa_1/state"});
-  devices.push_back({GPIO7, 0, 0x00002, ui_ButtonONOFF2, "pompa_2/state"});
-  devices.push_back({GPIO6, 0, 0x00003, ui_ButtonONOFF3, "pompa_3/state"});
-  devices.push_back({GPIO5, 0, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"});
+  devices.push_back({GPIO8, 0, -1, 0x00001, ui_ButtonONOFF1, "pompa_1/state"});
+  devices.push_back({GPIO7, 0, -1, 0x00002, ui_ButtonONOFF2, "pompa_2/state"});
+  devices.push_back({GPIO6, 0, -1, 0x00003, ui_ButtonONOFF3, "pompa_3/state"});
+  devices.push_back({GPIO5, 0, -1, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"});
+  // spinner = lv_spinner_create(lv_disp_get_scr_act(NULL), 1000, 60);  // 1000ms duration, 60px size
+  // lv_obj_center(spinner); 
+  // lv_obj_set_hidden(spinner, true);
 
   // Serial.println( "Setup done" );
   Wire.begin(SDA, SCL);
@@ -443,6 +470,7 @@ void setup()
   if (!ads2.begin(0x49)) {
     Serial.println("Failed to initialize ADS 1 .");
   }
+
   ads2.setGain(GAIN_ONE);
   setPinMode(GPIO5, OUTPUT);
   setPinMode(GPIO6, OUTPUT);
@@ -450,52 +478,46 @@ void setup()
   setPinMode(GPIO8, OUTPUT);
 }
 
-void reconnectWiFi() {
-  WiFi.disconnect();
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  unsigned long startAttemptTime = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 6000) {
-    Serial.print('.');
-    delay(1000);
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi reconnected!");
-  } else {
-    Serial.println("\nFailed to reconnect. Retrying...");
-  }
-}
-
 char tempStr[10],tempStr2[10], tempStr3[10], tempStr4[10], tempStr5[10]; 
+int16_t y = 0;
+bool wasWiFiConnected = false;
 
 void loop() {
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("WiFi not connected. Attempting to reconnect...");
-      reconnectWiFi();
-      return; // Skip the rest of the loop if not connected
-    }
-    // Serial.println("WiFi connected. Running main code...");
 
-    if(!Firebase.ready()){
-      initFirebase();
-      readFirebase();
-      Serial.println("Firebase now ready");
+    bool isWiFiConnected = (WiFi.status() == WL_CONNECTED); 
+    if (isWiFiConnected != wasWiFiConnected) {
+        if (isWiFiConnected) {
+            lv_obj_add_state(ui_ButtonWifi, LV_STATE_CHECKED);
+        } else {
+            lv_obj_clear_state(ui_ButtonWifi, LV_STATE_CHECKED);
+        }
+        wasWiFiConnected = isWiFiConnected;
     }
 
-    get_status();
+    if (WiFi.status() == WL_CONNECTED) {
+        if (!Firebase.ready()) {
+            initFirebase();
+            Serial.println("Firebase now ready");
+        }else{
+           get_status();
+        }
+    } 
+
     readRhTempNonBlocking();
     readSensorNonBlocking();
+
+    // readSensor();
 
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 
     lv_label_set_text(ui_humidity, tempStr2);
+
     // lv_label_set_text_fmt(ui_Soil_Moisture, tempStr3);
     lv_label_set_text_fmt(ui_ecValue, tempStr4);
     lv_label_set_text_fmt(ui_phValue, tempStr5);
 
     lv_timer_handler();
-    //lv_task_handler();
+    // lv_task_handler();
     delay(5);
 #endif
 }
