@@ -15,7 +15,7 @@ lv_obj_set_style_bg_opa(ui_screenControlling, 255, LV_PART_MAIN| LV_STATE_DEFAUL
 ui_ButtonControlling2 = lv_btn_create(ui_screenControlling);
 lv_obj_set_width( ui_ButtonControlling2, 100);
 lv_obj_set_height( ui_ButtonControlling2, 60);
-lv_obj_set_x( ui_ButtonControlling2, 160 );
+lv_obj_set_x( ui_ButtonControlling2, -160 );
 lv_obj_set_y( ui_ButtonControlling2, -160 );
 lv_obj_set_align( ui_ButtonControlling2, LV_ALIGN_CENTER );
 lv_obj_add_flag( ui_ButtonControlling2, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags
@@ -34,7 +34,7 @@ lv_label_set_text(ui_LabelControlling2,"Controlling");
 ui_ButtonNutrient2 = lv_btn_create(ui_screenControlling);
 lv_obj_set_width( ui_ButtonNutrient2, 100);
 lv_obj_set_height( ui_ButtonNutrient2, 60);
-lv_obj_set_x( ui_ButtonNutrient2, 285 );
+lv_obj_set_x( ui_ButtonNutrient2, -35 );
 lv_obj_set_y( ui_ButtonNutrient2, -160 );
 lv_obj_set_align( ui_ButtonNutrient2, LV_ALIGN_CENTER );
 lv_obj_add_flag( ui_ButtonNutrient2, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags
@@ -53,7 +53,7 @@ lv_label_set_text(ui_LabelNutrient2,"Nutrient");
 ui_ButtonHome2 = lv_btn_create(ui_screenControlling);
 lv_obj_set_width( ui_ButtonHome2, 100);
 lv_obj_set_height( ui_ButtonHome2, 60);
-lv_obj_set_x( ui_ButtonHome2, 35 );
+lv_obj_set_x( ui_ButtonHome2, -285 );
 lv_obj_set_y( ui_ButtonHome2, -160 );
 lv_obj_set_align( ui_ButtonHome2, LV_ALIGN_CENTER );
 lv_obj_add_flag( ui_ButtonHome2, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags

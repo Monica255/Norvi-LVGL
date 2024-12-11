@@ -12,7 +12,6 @@
 // SCREEN: ui_screenHome
 void ui_screenHome_screen_init(void);
 lv_obj_t *ui_screenHome;
-lv_obj_t *ui_ImageWaterTank;
 lv_obj_t *ui_panelPH;
 lv_obj_t *ui_LabelPHValue;
 lv_obj_t *ui_phValue;
@@ -23,10 +22,13 @@ lv_obj_t *ui_ecValue1;
 lv_obj_t *ui_panelSensor;
 lv_obj_t *ui_LabelTemp;
 lv_obj_t *ui_LabelHumidity;
+lv_obj_t *ui_labelSoil;
 lv_obj_t *ui_temp;
 lv_obj_t *ui_temp1;
 lv_obj_t *ui_humidity;
 lv_obj_t *ui_humidity1;
+lv_obj_t *ui_Soil_Moisture;
+lv_obj_t *ui_Soil_Moisture1;
 void ui_event_ButtonControlling1( lv_event_t * e);
 lv_obj_t *ui_ButtonControlling1;
 lv_obj_t *ui_LabelControlling1;
@@ -35,6 +37,10 @@ lv_obj_t *ui_ButtonNutrient1;
 lv_obj_t *ui_LabelNutrient1;
 lv_obj_t *ui_ButtonHome1;
 lv_obj_t *ui_LabelHome1;
+void ui_event_ButtonWifi( lv_event_t * e);
+lv_obj_t *ui_ButtonWifi;
+lv_obj_t *ui_LabelWifi1;
+lv_obj_t *ui_LabelWifi2;
 
 
 // SCREEN: ui_screenControlling
@@ -132,6 +138,15 @@ if ( event_code == LV_EVENT_CLICKED) {
       _ui_screen_change( &ui_screenNutrient, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_screenNutrient_screen_init);
 }
 }
+void ui_event_ButtonWifi( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
+if ( event_code == LV_EVENT_CLICKED) {
+      _ui_state_modify( ui_LabelWifi2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
+      _ui_state_modify( ui_LabelWifi1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
+      _ui_state_modify( ui_ButtonWifi, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
+      connectWifi( e );
+}
+}
 void ui_event_ButtonNutrient2( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
@@ -174,7 +189,7 @@ if ( event_code == LV_EVENT_CLICKED) {
       _ui_state_modify( ui_LabelStateOFFPompa3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_LabelStateONPompa3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_ButtonONOFF3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      OnOffPompa2( e );
+      OnOffPompa3( e );
 }
 }
 void ui_event_ButtonONOFF4( lv_event_t * e) {
@@ -185,7 +200,7 @@ if ( event_code == LV_EVENT_CLICKED) {
       _ui_state_modify( ui_LabelStateOFFExh, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_LabelStateONExh, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_ButtonONOFF4, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      OnOffPompa2( e );
+      OnOffExh( e );
 }
 }
 void ui_event_ButtonControlling3( lv_event_t * e) {
@@ -202,26 +217,26 @@ if ( event_code == LV_EVENT_CLICKED) {
 }
 void ui_event_TextAreaECTarget( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
-if ( event_code == LV_EVENT_VALUE_CHANGED) {
-      calculateAB( e );
-}
 if ( event_code == LV_EVENT_CLICKED) {
       _ui_keyboard_set_target(ui_Keyboard1,  ui_TextAreaECTarget);
 }
 }
 void ui_event_TextAreaMixTime( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
-if ( event_code == LV_EVENT_VALUE_CHANGED) {
-      calculateAB( e );
-}
 if ( event_code == LV_EVENT_CLICKED) {
       _ui_keyboard_set_target(ui_Keyboard1,  ui_TextAreaMixTime);
+}
+if ( event_code == LV_EVENT_VALUE_CHANGED) {
+      calculateAB( e );
 }
 }
 void ui_event_ButtonStart( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
       startManualNutrient( e );
+}
+if ( event_code == LV_EVENT_CLICKED) {
+      _ui_state_modify( ui_ButtonStart, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
 }
 }
 

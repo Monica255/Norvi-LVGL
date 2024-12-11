@@ -40,10 +40,10 @@
  #define TOUCH_XPT2046_MOSI 11
  #define TOUCH_XPT2046_CS 39
  #define TOUCH_XPT2046_INT 42
- #define TOUCH_XPT2046_ROTATION 2
-//  #define TOUCH_MAP_X1 900
-//  #define TOUCH_MAP_X2 3500
-//  #define TOUCH_MAP_Y1 3800
+ #define TOUCH_XPT2046_ROTATION 1
+//  #define TOUCH_MAP_X1 800
+//  #define TOUCH_MAP_X2 3300
+//  #define TOUCH_MAP_Y1 3700
 //  #define TOUCH_MAP_Y2 330
 
  #define TOUCH_MAP_X1 270
@@ -189,15 +189,24 @@ bool touch_touched()
   {
     TS_Point p = ts.getPoint();
 #if defined(TOUCH_SWAP_XY)
-    touch_last_x = map(p.y, TOUCH_MAP_X1, TOUCH_MAP_X2, 400, -400);
-    touch_last_y = map(p.x, TOUCH_MAP_Y1, TOUCH_MAP_Y2, -240, 240);
+    touch_last_x = map(p.y, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, lcd->width() - 1);
+    touch_last_y = map(p.x, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, lcd->height() - 1);
 #else
     // touch_last_x = map(p.x,  TOUCH_MAP_X1, TOUCH_MAP_X2, 400, -400);
     // touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, -240, 240);
-    touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, lcd->width() - 1);
+
+    // touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, lcd->width() - 1);
+    // touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, lcd->height() - 1);
+
+    // touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, lcd->width() - 1);
+    // touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, lcd->height() - 1, 0);
+
+    touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, lcd->width() - 1, 0);
     touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, lcd->height() - 1);
+
+
     //  touch_last_x = p.x;
-    // touch_last_y = p.y;
+    //  touch_last_y = p.y;
 #endif
     return true;
   }
