@@ -236,18 +236,6 @@ lv_obj_set_align( ui_LabelWifi1, LV_ALIGN_CENTER );
 lv_label_set_text(ui_LabelWifi1,"Connect");
 lv_obj_set_style_text_color(ui_LabelWifi1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
 lv_obj_set_style_text_opa(ui_LabelWifi1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_text_color(ui_LabelWifi1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED );
-lv_obj_set_style_text_opa(ui_LabelWifi1, 0, LV_PART_MAIN| LV_STATE_CHECKED);
-
-ui_LabelWifi2 = lv_label_create(ui_ButtonWifi);
-lv_obj_set_width( ui_LabelWifi2, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_LabelWifi2, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_align( ui_LabelWifi2, LV_ALIGN_CENTER );
-lv_label_set_text(ui_LabelWifi2,"Disconnect");
-lv_obj_set_style_text_color(ui_LabelWifi2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_text_opa(ui_LabelWifi2, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_text_color(ui_LabelWifi2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED );
-lv_obj_set_style_text_opa(ui_LabelWifi2, 255, LV_PART_MAIN| LV_STATE_CHECKED);
 
 lv_obj_add_event_cb(ui_ButtonControlling1, ui_event_ButtonControlling1, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_ButtonNutrient1, ui_event_ButtonNutrient1, LV_EVENT_ALL, NULL);

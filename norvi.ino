@@ -44,7 +44,10 @@ Adafruit_ADS1115 ads2;
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
+
 lv_obj_t *spinner;
+
+#include "credentials.h"
 
 #define sensorFrameSize  19
 #define sensorWaitingTime 1500
@@ -262,32 +265,67 @@ enum SensorReadState {
 
 SensorReadState sensorReadState = INIT_SENSOR_READ;
 
+bool isWiFiConnecting = false; // Track Wi-Fi connection state
+unsigned long wifiAttemptStartTime = 0;
+const unsigned long wifiTimeout = 6000; // Timeout for Wi-Fi connection attempt
+
 void reconnectWiFi(bool connect) {
     if (connect) {
-        WiFi.disconnect(); // Disconnect any existing connection
+        if (isWiFiConnecting) return; // Prevent re-entering connection process
+        updateWiFiButtonState(false, lv_color_hex(0xAAAAAA),"...");
+        WiFi.disconnect();          // Disconnect any existing connection
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // Start connection
-
-        unsigned long startAttemptTime = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 6000) {
-            Serial.print('.');
-            delay(1000);
-        }
+        wifiAttemptStartTime = millis();
+        isWiFiConnecting = true;    // Set connection state
+        Serial.println("Wifi connected");
+        updateWiFiButtonState(true, lv_color_hex(0xFF0000),"Disconnect");
     } else {
+        updateWiFiButtonState(false, lv_color_hex(0xAAAAAA),"...");
         if (Firebase.ready()) {
             disconnectFirebase();
             Serial.println("Firebase disconnected");
         }
-        WiFi.disconnect(); // Disconnect WiFi
+        WiFi.disconnect();          // Disconnect Wi-Fi
         Serial.println("WiFi disconnected.");
+        isWiFiConnecting = false;   // Reset connection state
+        updateWiFiButtonState(true, lv_color_hex(0x0000FF),"Connect");
     }
 }
 
+// void handleWiFiConnection() {
+//     if (isWiFiConnecting) {
+//         // Check connection status
+//         if (WiFi.status() == WL_CONNECTED) {
+//             Serial.println("Wi-Fi connected!");
+//             isWiFiConnecting = false;
+//             updateWiFiButtonState(true); // Enable button and reset color
+//         } else if (millis() - wifiAttemptStartTime > wifiTimeout) {
+//             Serial.println("Wi-Fi connection timeout!");
+//             isWiFiConnecting = false;
+//             updateWiFiButtonState(true); // Enable button and reset color
+//         }
+//     }
+// }
 
-void connectWifi(lv_event_t * e)
-{
-  bool is_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-	reconnectWiFi(is_on);
+void connectWifi(lv_event_t * e) {
+    lv_obj_t * button = lv_event_get_target(e);
+    bool is_on = lv_obj_has_state(button, LV_STATE_CHECKED);
+    reconnectWiFi(is_on);
+    
 }
+
+void updateWiFiButtonState(bool enable, lv_color_t color, const char *labelText) {
+    // Update the button state and color
+    lv_obj_t * button = ui_ButtonWifi; // Assuming `ui_ButtonWifi` is your button object
+    if (enable) {
+        lv_obj_clear_state(button, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_state(button, LV_STATE_DISABLED);
+    }
+    lv_obj_set_style_bg_color(button, color, LV_PART_MAIN); // Update button color
+    lv_label_set_text(ui_LabelWifi1, labelText); // Assuming `ui_LabelWifi1` is the label object
+}
+
 
 void OnOffDevice(bool is_on, int index) {
     int x;
@@ -479,20 +517,20 @@ void setup()
 }
 
 char tempStr[10],tempStr2[10], tempStr3[10], tempStr4[10], tempStr5[10]; 
-int16_t y = 0;
-bool wasWiFiConnected = false;
+
+// bool wasWiFiConnected = false;
 
 void loop() {
-
-    bool isWiFiConnected = (WiFi.status() == WL_CONNECTED); 
-    if (isWiFiConnected != wasWiFiConnected) {
-        if (isWiFiConnected) {
-            lv_obj_add_state(ui_ButtonWifi, LV_STATE_CHECKED);
-        } else {
-            lv_obj_clear_state(ui_ButtonWifi, LV_STATE_CHECKED);
-        }
-        wasWiFiConnected = isWiFiConnected;
-    }
+    // handleWiFiConnection();
+    // bool isWiFiConnected = (WiFi.status() == WL_CONNECTED); 
+    // if (isWiFiConnected != wasWiFiConnected) {
+    //     if (isWiFiConnected) {
+    //         lv_obj_add_state(ui_ButtonWifi, LV_STATE_CHECKED);
+    //     } else {
+    //         lv_obj_clear_state(ui_ButtonWifi, LV_STATE_CHECKED);
+    //     }
+    //     wasWiFiConnected = isWiFiConnected;
+    // }
 
     if (WiFi.status() == WL_CONNECTED) {
         if (!Firebase.ready()) {
