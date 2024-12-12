@@ -48,7 +48,6 @@ extern lv_obj_t *ui_LabelHome1;
 void ui_event_ButtonWifi( lv_event_t * e);
 extern lv_obj_t *ui_ButtonWifi;
 extern lv_obj_t *ui_LabelWifi1;
-extern lv_obj_t *ui_LabelWifi2;
 // SCREEN: ui_screenControlling
 void ui_screenControlling_screen_init(void);
 extern lv_obj_t *ui_screenControlling;

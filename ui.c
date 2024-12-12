@@ -40,7 +40,6 @@ lv_obj_t *ui_LabelHome1;
 void ui_event_ButtonWifi( lv_event_t * e);
 lv_obj_t *ui_ButtonWifi;
 lv_obj_t *ui_LabelWifi1;
-lv_obj_t *ui_LabelWifi2;
 
 
 // SCREEN: ui_screenControlling
@@ -141,8 +140,6 @@ if ( event_code == LV_EVENT_CLICKED) {
 void ui_event_ButtonWifi( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_state_modify( ui_LabelWifi2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelWifi1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_ButtonWifi, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       connectWifi( e );
 }

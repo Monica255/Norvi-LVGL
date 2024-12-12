@@ -57,7 +57,7 @@ void readRhTempNonBlocking() {
                 break;
 
             case READ_DONE:
-                if (wasWiFiConnected) {
+                if (WiFi.status() == WL_CONNECTED) {
                     sent_datarhtemp();
                 }  
                 readState = READ_ADC0;
@@ -234,7 +234,7 @@ void readSensorNonBlocking() {
             }
             break;
         case SAVE_FIREBASE:
-            if (wasWiFiConnected) {
+            if (WiFi.status() == WL_CONNECTED) {
                 sent_dataecph();
             }
             sensorReadState = READ_COMPLETE;
