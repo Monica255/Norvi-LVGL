@@ -4,7 +4,6 @@
 #define USER_PASSWORD "123456"
 #define UID "qCMioHucfgUKWnNczlpoofELWFs1"
 
-
 String kebun_id = "kebun1";
 
 FirebaseData fbdo;
@@ -41,7 +40,6 @@ void readFirebase(){
   pathMonitoring = String (path) + "/"+ String(kebun_id) +"/monitoring";
   pathNutrient = String (path) + "/"+ String(kebun_id) +"/nutrient";
   pathControlling = String (path) + "/"+ String(kebun_id) +"/controlling";
-  // pathConnection = String (path) + "/"+ String(kebun_id) +"/connected";
 }
 
 void get_status() {
