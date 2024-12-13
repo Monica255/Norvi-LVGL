@@ -51,10 +51,11 @@ void readFirebase(){
 }
 
 void get_status() {
-
-    // if (wasWiFiConnected) {
-    fetchControllingDataNonBlocking();
-    // }
+    if (isWiFiConnecting) {
+        if (Firebase.ready()) {
+            fetchControllingDataNonBlocking();
+        }
+    } 
     // fetchNutrientData();
     // observeNutrientStatus();
 }

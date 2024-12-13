@@ -112,6 +112,7 @@ void ui_event_ButtonStart( lv_event_t * e);
 lv_obj_t *ui_ButtonStart;
 lv_obj_t *ui_LabelButtonStart;
 lv_obj_t *ui_Keyboard1;
+lv_obj_t *ui_LabelTime;
 lv_obj_t *ui____initial_actions0;
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
@@ -140,7 +141,6 @@ if ( event_code == LV_EVENT_CLICKED) {
 void ui_event_ButtonWifi( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_state_modify( ui_ButtonWifi, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       connectWifi( e );
 }
 }
@@ -231,9 +231,6 @@ void ui_event_ButtonStart( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
       startManualNutrient( e );
-}
-if ( event_code == LV_EVENT_CLICKED) {
-      _ui_state_modify( ui_ButtonStart, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
 }
 }
 

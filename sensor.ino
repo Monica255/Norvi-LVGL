@@ -170,7 +170,7 @@ void readSensorNonBlocking() {
         case WAIT_FOR_RESPONSE:
             // Serial.println("waiting sensor data");
             if (millis() - sensorStartTime >= SENSOR_WAIT_TIME) {
-                Serial.println("Sensor response timeout.");
+                // Serial.println("Sensor response timeout.");
                 sensorReadState = READ_COMPLETE;  // Move to complete state
             } else if (Serial1.available()) {
                 sensorReadState = READ_SENSOR_DATA; // Move to read data state when data is available
