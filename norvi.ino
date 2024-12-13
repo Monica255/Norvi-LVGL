@@ -95,17 +95,6 @@ struct Nutrient {
 
 Nutrient nutrient;
 
-// void initWiFi() {
-//   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-//   Serial.print("Connecting to WiFi ..");
-//   while (WiFi.status() != WL_CONNECTED) {
-//     Serial.print('.');
-//     delay(1000);
-//   }
-//   Serial.println(WiFi.localIP());
-// }
-
-
 void setPinMode(uint8_t pin, uint8_t mode) {
   uint8_t config = readRegister(PCA9538_CONFIG_REG);
   if (mode == INPUT) {
@@ -237,17 +226,6 @@ enum FetchState {
 };
 FetchState fetchState = FETCH_INIT;
 
-// enum FetchNutrientState {
-//     FETCH_IDLE,
-//     FETCH_INIT_NUT,
-//     FETCH_WAIT_NUT,
-//     FETCH_GET_JSON,
-//     FETCH_CONVERT_TO_NUTRIENT,
-//     FETCH_DONE_NUT
-// };
-// FetchNutrientState fetchNutrientState = FETCH_INIT_NUT;
-
-
 enum SensorReadState {
     IDLE2,
     INIT_SENSOR_READ,
@@ -268,34 +246,13 @@ SensorReadState sensorReadState = INIT_SENSOR_READ;
 bool isWiFiConnecting = false; // Track Wi-Fi connection state
 bool startConnection = false;
 unsigned long wifiAttemptStartTime = 0;
-const unsigned long wifiTimeout = 5000; // Timeout for Wi-Fi connection attempt
-
-void reconnectWiFi(bool connect) {
-    if (!connect) {
-        startConnection = true;
-        updateWiFiButtonState(false, lv_color_hex(0x0000FF),"...");
-        WiFi.disconnect();  
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-        wifiAttemptStartTime = millis();
-    } else {
-        updateWiFiButtonState(false, lv_color_hex(0xFF0000),"...");
-        if (Firebase.ready()) {
-            disconnectFirebase();
-            Serial.println("Firebase disconnected");
-        }
-        WiFi.disconnect();          // Disconnect Wi-Fi
-        Serial.println("WiFi disconnected.");
-        isWiFiConnecting = false;   // Reset connection state
-        updateWiFiButtonState(true, lv_color_hex(0x0000FF),"Connect");
-    }
-}
+const unsigned long wifiTimeout = 5000; 
 
 void connectWifi(lv_event_t * e) {
     reconnectWiFi(isWiFiConnecting);
 }
 
 void updateWiFiButtonState(bool enable, lv_color_t color, const char *labelText) {
-    // Update the button state and color
     lv_obj_t * button = ui_ButtonWifi; // Assuming `ui_ButtonWifi` is your button object
     if (enable) {
         lv_obj_clear_state(button, LV_STATE_DISABLED);
@@ -320,12 +277,10 @@ void OnOffDevice(bool is_on, int index) {
     }
     sensorReadState = IDLE2;
     fetchState = IDLE;
-    // fetchNutrientState = FETCH_IDLE;
     writeOutput(devices[index].pin, x);
     updateFirebaseDeviceState(index, x);
     result = node.writeSingleCoil(devices[index].coil, x);
     fetchState = FETCH_INIT;
-    // fetchNutrientState = FETCH_INIT_NUT;
     sensorReadState = INIT_SENSOR_READ;
 }
 
@@ -370,7 +325,6 @@ void calculateAB(lv_event_t * e)
     const char * text = lv_textarea_get_text(ui_TextAreaMixTime);
     int inputValue = atoi(text);
     int result = inputValue * ml;
-    // mixTime = inputValue;
     
     char resultStr[16]; // Ensure enough space for the integer
     dtostrf(result, 6, 0, resultStr);
@@ -485,35 +439,11 @@ void setup()
   setPinMode(GPIO7, OUTPUT);
   setPinMode(GPIO8, OUTPUT);
 }
-#include <HTTPClient.h>
 
-bool isInternetAvailable() {
-    HTTPClient http;
-    http.begin("http://clients3.google.com/generate_204"); // URL used to check connectivity
-    int httpCode = http.GET();
-    http.end();
-    return (httpCode == 204); // HTTP 204 means success (no content, but reachable)
-}
 char tempStr[10],tempStr2[10], tempStr3[10], tempStr4[10], tempStr5[10]; 
 
 void loop() {
-    if (WiFi.status() == WL_CONNECTED) {
-          if (!Firebase.ready()) {
-              initFirebase();
-          }else if(Firebase.ready() && !isWiFiConnecting){
-            isWiFiConnecting = true; 
-            updateWiFiButtonState(true, lv_color_hex(0xFF0000),"Disconnect");
-          }
-    } else{
-        if (millis() - wifiAttemptStartTime >= wifiTimeout && startConnection) {
-            startConnection=false;
-            wifiAttemptStartTime =0;
-            // reconnectWiFi(false);
-            isWiFiConnecting = false; 
-            updateWiFiButtonState(true, lv_color_hex(0x0000FF),"Connect");
-            Serial.println("timeout");
-        }
-    }
+    observeWifi();
     
     get_status();
 
@@ -521,9 +451,6 @@ void loop() {
     readSensorNonBlocking();
 
     observeNutrient();
-
-
-    // readSensor();
 
 #ifdef USE_UI
     lv_label_set_text(ui_temp, tempStr); 

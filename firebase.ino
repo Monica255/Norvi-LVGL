@@ -47,7 +47,6 @@ void readFirebase(){
   pathMonitoring = String (path) + "/"+ String(kebun_id) +"/monitoring";
   pathNutrient = String (path) + "/"+ String(kebun_id) +"/nutrient";
   pathControlling = String (path) + "/"+ String(kebun_id) +"/controlling";
-  // pathConnection = String (path) + "/"+ String(kebun_id) +"/connected";
 }
 
 void get_status() {
