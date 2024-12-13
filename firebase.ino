@@ -2,7 +2,7 @@
 #define API_KEY "AIzaSyAU9mj87Pq1ixTQm7lkzMHtaz1Eqm0Iht0"
 #define USER_EMAIL "test@test.com"
 #define USER_PASSWORD "123456"
-#define UID "4V9otsVj8nSKv87wDXpcDax2pFR2"
+#define UID "qCMioHucfgUKWnNczlpoofELWFs1"
 
 
 String kebun_id = "kebun1";
@@ -45,10 +45,11 @@ void readFirebase(){
 }
 
 void get_status() {
-
-    // if (wasWiFiConnected) {
-    fetchControllingDataNonBlocking();
-    // }
+    if (isWiFiConnecting) {
+        if (Firebase.ready()) {
+            fetchControllingDataNonBlocking();
+        }
+    } 
     // fetchNutrientData();
     // observeNutrientStatus();
 }

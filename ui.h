@@ -116,6 +116,7 @@ void ui_event_ButtonStart( lv_event_t * e);
 extern lv_obj_t *ui_ButtonStart;
 extern lv_obj_t *ui_LabelButtonStart;
 extern lv_obj_t *ui_Keyboard1;
+extern lv_obj_t *ui_LabelTime;
 extern lv_obj_t *ui____initial_actions0;
 
 
