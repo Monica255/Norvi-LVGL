@@ -19,13 +19,13 @@ void observeWifi(){
         if (millis() - wifiAttemptStartTime >= wifiTimeout && startConnection) {
             startConnection=false;
             wifiAttemptStartTime =0;
-            // reconnectWiFi(false);
             isWiFiConnecting = false; 
             updateWiFiButtonState(true, lv_color_hex(0x0000FF),"Connect");
             Serial.println("timeout");
         }
     }
 }
+
 void reconnectWiFi(bool connect) {
     if (!connect) {
         startConnection = true;
