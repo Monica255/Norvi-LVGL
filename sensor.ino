@@ -111,7 +111,8 @@ byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example co
 byte byteResponse[SENSOR_FRAME_SIZE];
 int bytesRead = 0;
 #define READ_INTERVAL 1300 
-int ec2,ph2,tp2;
+int ec2;
+float ph2,tp2;
 
 void readSensor() {
   byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
@@ -148,7 +149,7 @@ void readSensor() {
   tp = sensorValue(byteResponse[15], byteResponse[16]) * 0.1;
   dtostrf(tp, 6, 0, tempStr3);
   dtostrf(ec, 6, 0, tempStr4);
-  dtostrf(ph, 6, 0, tempStr5);
+  dtostrf(ph, 6, 2, tempStr5);
 } 
 
 void readSensorNonBlocking() {
@@ -221,13 +222,13 @@ void readSensorNonBlocking() {
             break;
         case CHECK_DATA:
             bytesRead = 0;
+            dtostrf(tp, 6, 0, tempStr3);
+            dtostrf(ec, 6, 0, tempStr4);
+            dtostrf(ph, 6, 2, tempStr5);
             if(ec2!=ec || ph2!=ph || tp2!= tp){
                 ec=ec2;
                 ph=ph2;
                 tp=tp2;
-                dtostrf(tp, 6, 0, tempStr3);
-                dtostrf(ec, 6, 0, tempStr4);
-                dtostrf(ph, 6, 0, tempStr5);
                 sensorReadState = SAVE_FIREBASE;
             }else {
                 sensorReadState = READ_COMPLETE;

@@ -65,25 +65,14 @@ std::vector<DeviceState> devices;
 
 String uid, path, pathMonitoring, pathNutrient, pathControlling;
 float temperatureC, RH, valSoil;
-int  ph, ec;
-float tp;
-String nutrient_state= "idle";
+int   ec;
+float tp,ph;
 
 struct SensorData {
-  int ph;
+  float ph;
   int ec;
   float tp;
 };
-
-struct Nutrient {
-    int target_ec = 0;
-    int calc_A = 0.;
-    int calc_B = 0;
-    String status = "";
-    int times = 0;
-};
-
-Nutrient nutrient;
 
 void setPinMode(uint8_t pin, uint8_t mode) {
   uint8_t config = readRegister(PCA9538_CONFIG_REG);
@@ -428,6 +417,11 @@ void setup()
   setPinMode(GPIO6, OUTPUT);
   setPinMode(GPIO7, OUTPUT);
   setPinMode(GPIO8, OUTPUT);
+
+  writeOutput(devices[0].pin, 0);
+  writeOutput(devices[1].pin, 0);
+  writeOutput(devices[2].pin, 0);
+  writeOutput(devices[3].pin, 0);
 }
 
 char tempStr[10],tempStr2[10], tempStr3[10], tempStr4[10], tempStr5[10]; 
