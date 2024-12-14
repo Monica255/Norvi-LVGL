@@ -1,12 +1,13 @@
-// void get_connection(){
-//     if (WiFi.status() != WL_CONNECTED){
-//       Serial.println("Disconnect, offline");
-//       delay(1000);
-//       Serial.println("Try to connection");
-//       ESP.restart();
-//       delay(3000);
-//     }
-// }
+void updateWiFiButtonState(bool enable, lv_color_t color, const char *labelText) {
+    if (enable) {
+        lv_obj_clear_state(ui_ButtonWifi, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_state(ui_ButtonWifi, LV_STATE_DISABLED);
+    }
+    lv_obj_set_style_bg_color(ui_ButtonWifi, color, LV_PART_MAIN); // Update button color
+    lv_label_set_text(ui_LabelWifi1, labelText); // Assuming `ui_LabelWifi1` is the label object
+}
+
 void observeWifi(){
   if (WiFi.status() == WL_CONNECTED) {
           if (!Firebase.ready()) {
