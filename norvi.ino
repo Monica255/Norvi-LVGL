@@ -47,7 +47,6 @@ Adafruit_ADS1115 ads2;
 
 lv_obj_t *spinner;
 
-#include "credentials.h"
 
 #define sensorFrameSize  19
 #define sensorWaitingTime 1500

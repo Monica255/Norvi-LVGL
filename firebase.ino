@@ -5,6 +5,8 @@
 #define sensorFrameSize  19
 #define sensorWaitingTime 1000
 
+#include "credentials.h"
+
 String kebun_id = "kebun1";
 
 FirebaseData fbdo;
