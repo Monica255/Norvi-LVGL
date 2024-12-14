@@ -12,6 +12,7 @@
 // SCREEN: ui_screenHome
 void ui_screenHome_screen_init(void);
 lv_obj_t *ui_screenHome;
+lv_obj_t *ui_Panel1;
 lv_obj_t *ui_panelPH;
 lv_obj_t *ui_LabelPHValue;
 lv_obj_t *ui_phValue;
@@ -45,6 +46,7 @@ lv_obj_t *ui_LabelWifi1;
 // SCREEN: ui_screenControlling
 void ui_screenControlling_screen_init(void);
 lv_obj_t *ui_screenControlling;
+lv_obj_t *ui_Panel4;
 lv_obj_t *ui_ButtonControlling2;
 lv_obj_t *ui_LabelControlling2;
 void ui_event_ButtonNutrient2( lv_event_t * e);
@@ -58,38 +60,31 @@ lv_obj_t *ui_LabelPompa1;
 void ui_event_ButtonONOFF1( lv_event_t * e);
 lv_obj_t *ui_ButtonONOFF1;
 lv_obj_t *ui_LabelON1;
-lv_obj_t *ui_LabelOFF1;
 lv_obj_t *ui_LabelStateOFFPompa1;
-lv_obj_t *ui_LabelStateONPompa1;
 lv_obj_t *ui_PanelPompa2;
 lv_obj_t *ui_LabelPompa2;
 void ui_event_ButtonONOFF2( lv_event_t * e);
 lv_obj_t *ui_ButtonONOFF2;
 lv_obj_t *ui_LabelON2;
-lv_obj_t *ui_LabelOFF2;
 lv_obj_t *ui_LabelStateOFFPompa2;
-lv_obj_t *ui_LabelStateONPompa2;
 lv_obj_t *ui_PanelPompa3;
 lv_obj_t *ui_LabelPompa3;
 void ui_event_ButtonONOFF3( lv_event_t * e);
 lv_obj_t *ui_ButtonONOFF3;
 lv_obj_t *ui_LabelON3;
-lv_obj_t *ui_LabelOFF3;
 lv_obj_t *ui_LabelStateOFFPompa3;
-lv_obj_t *ui_LabelStateONPompa3;
 lv_obj_t *ui_PanelExh;
 lv_obj_t *ui_LabelExh;
 void ui_event_ButtonONOFF4( lv_event_t * e);
 lv_obj_t *ui_ButtonONOFF4;
 lv_obj_t *ui_LabelON4;
-lv_obj_t *ui_LabelOFF4;
 lv_obj_t *ui_LabelStateOFFExh;
-lv_obj_t *ui_LabelStateONExh;
 
 
 // SCREEN: ui_screenNutrient
 void ui_screenNutrient_screen_init(void);
 lv_obj_t *ui_screenNutrient;
+lv_obj_t *ui_Panel3;
 void ui_event_ButtonControlling3( lv_event_t * e);
 lv_obj_t *ui_ButtonControlling3;
 lv_obj_t *ui_LabelControlling3;
@@ -160,20 +155,12 @@ void ui_event_ButtonONOFF1( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
       _ui_state_modify( ui_ButtonONOFF1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateOFFPompa1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateONPompa1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelOFF1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelON1, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       OnOffPompa1( e );
 }
 }
 void ui_event_ButtonONOFF2( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_state_modify( ui_LabelON2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelOFF2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateOFFPompa2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateONPompa2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_ButtonONOFF2, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       OnOffPompa2( e );
 }
@@ -181,10 +168,6 @@ if ( event_code == LV_EVENT_CLICKED) {
 void ui_event_ButtonONOFF3( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_state_modify( ui_LabelON3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelOFF3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateOFFPompa3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateONPompa3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_ButtonONOFF3, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       OnOffPompa3( e );
 }
@@ -192,10 +175,6 @@ if ( event_code == LV_EVENT_CLICKED) {
 void ui_event_ButtonONOFF4( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_state_modify( ui_LabelON4, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelOFF4, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateOFFExh, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
-      _ui_state_modify( ui_LabelStateONExh, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       _ui_state_modify( ui_ButtonONOFF4, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
       OnOffExh( e );
 }
