@@ -44,8 +44,8 @@ Adafruit_ADS1115 ads2;
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-#define WIFI_SSID "Terang Bulan2"
-#define WIFI_PASSWORD "nastarkeju"
+#define WIFI_SSID "Wifi"
+#define WIFI_PASSWORD "Wifi12345"
 
 struct DeviceState {
     int pin;              // GPIO pin
