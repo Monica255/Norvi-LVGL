@@ -91,7 +91,6 @@ int sensorValue(int x, int y) {
   int t = 0;
   t = x * 256;
   t = t + y;
-
   return t;
 }
 
@@ -100,11 +99,8 @@ bool readGPIOState(uint8_t gpio) {
     return (inputState & gpio) != 0;  // Check if the specified GPIO bit is set
 }
 
-
 #define SENSOR_WAIT_TIME 2000  // Maximum wait time for response in milliseconds
 #define SENSOR_FRAME_SIZE 19   // Size of the data frame from the sensor
-
-
 
 unsigned long sensorStartTime = 0; // Time when sensor read started
 byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
@@ -114,43 +110,43 @@ int bytesRead = 0;
 int ec2;
 float ph2,tp2;
 
-void readSensor() {
-  byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
-  byte byteResponse[SENSOR_FRAME_SIZE];
+// void readSensor() {
+//   byte command[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xCB}; // Example command
+//   byte byteResponse[SENSOR_FRAME_SIZE];
 
-  while (Serial1.available()) {
-      Serial1.read();  // Clear any junk data from the buffer
-  }
+//   while (Serial1.available()) {
+//       Serial1.read();  // Clear any junk data from the buffer
+//   }
   
-  Serial1.write(command, sizeof(command));
+//   Serial1.write(command, sizeof(command));
 
-  unsigned long resptime = millis();
-  while ((Serial1.available() < SENSOR_FRAME_SIZE) && ((millis() - resptime) < SENSOR_WAIT_TIME)) {
-    delay(1);
-  }
+//   unsigned long resptime = millis();
+//   while ((Serial1.available() < SENSOR_FRAME_SIZE) && ((millis() - resptime) < SENSOR_WAIT_TIME)) {
+//     delay(1);
+//   }
   
-  String response = "";
-  int bytesRead = 0;
-  while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE) {
-    byteResponse[bytesRead++] = Serial1.read();
-  }
+//   String response = "";
+//   int bytesRead = 0;
+//   while (Serial1.available() && bytesRead < SENSOR_FRAME_SIZE) {
+//     byteResponse[bytesRead++] = Serial1.read();
+//   }
 
-  String responseString;
-  for (int j = 0; j < sensorFrameSize; j++) {
-    responseString += byteResponse[j] < 0x10 ? " 0" : " ";
-    responseString += String(byteResponse[j], HEX);
-    responseString.toUpperCase();
-  }
-  Serial.println(responseString);
+//   String responseString;
+//   for (int j = 0; j < sensorFrameSize; j++) {
+//     responseString += byteResponse[j] < 0x10 ? " 0" : " ";
+//     responseString += String(byteResponse[j], HEX);
+//     responseString.toUpperCase();
+//   }
+//   Serial.println(responseString);
 
-  SensorData data;
-  ph = sensorValue(byteResponse[11], byteResponse[12]) * 0.01;
-  ec = sensorValue(byteResponse[13], byteResponse[14]);
-  tp = sensorValue(byteResponse[15], byteResponse[16]) * 0.1;
-  dtostrf(tp, 6, 0, tempStr3);
-  dtostrf(ec, 6, 0, tempStr4);
-  dtostrf(ph, 6, 2, tempStr5);
-} 
+//   SensorData data;
+//   ph = sensorValue(byteResponse[11], byteResponse[12]) * 0.01;
+//   ec = sensorValue(byteResponse[13], byteResponse[14]);
+//   tp = sensorValue(byteResponse[15], byteResponse[16]) * 0.1;
+//   dtostrf(tp, 6, 0, tempStr3);
+//   dtostrf(ec, 6, 0, tempStr4);
+//   dtostrf(ph, 6, 2, tempStr5);
+// } 
 
 void readSensorNonBlocking() {
     static String responseString = "";

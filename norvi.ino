@@ -64,8 +64,8 @@ struct DeviceState {
     lv_obj_t *uiState;   // UI button to control the device
     const char *path;     // Firebase JSON path
 };
+
 std::vector<DeviceState> devices;
-// Devices array
 
 DeviceState devices[] = {
     {GPIO8, 0, 0, 0x00001, ui_ButtonONOFF1, "pompa_1/state"},
@@ -76,15 +76,15 @@ DeviceState devices[] = {
 
 
 String uid, path, pathMonitoring, pathNutrient, pathControlling;
-float temperatureC, RH, valSoil;
+float temperatureC, RH;
 int   ec;
 float tp,ph;
 
-struct SensorData {
-  float ph;
-  int ec;
-  float tp;
-};
+// struct SensorData {
+//   float ph;
+//   int ec;
+//   float tp;
+// };
 
 void setPinMode(uint8_t pin, uint8_t mode) {
   uint8_t config = readRegister(PCA9538_CONFIG_REG);
@@ -179,7 +179,6 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     if (touch_touched())
     {
       data->state = LV_INDEV_STATE_PR;
-
       /*Set the coordinates*/
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
@@ -216,7 +215,6 @@ enum FetchState {
     FETCH_DONE
 };
 FetchState fetchState = FETCH_INIT;
-
 enum SensorReadState {
     IDLE2,
     INIT_SENSOR_READ,
@@ -234,7 +232,7 @@ enum SensorReadState {
 
 SensorReadState sensorReadState = INIT_SENSOR_READ;
 
-bool isWiFiConnecting = false; // Track Wi-Fi connection state
+bool isWiFiConnecting = false; 
 bool startConnection = false;
 unsigned long wifiAttemptStartTime = 0;
 const unsigned long wifiTimeout = 5000; 
@@ -242,18 +240,6 @@ const unsigned long wifiTimeout = 5000;
 void connectWifi(lv_event_t * e) {
     reconnectWiFi(isWiFiConnecting);
 }
-
-void updateWiFiButtonState(bool enable, lv_color_t color, const char *labelText) {
-    lv_obj_t * button = ui_ButtonWifi; // Assuming `ui_ButtonWifi` is your button object
-    if (enable) {
-        lv_obj_clear_state(button, LV_STATE_DISABLED);
-    } else {
-        lv_obj_add_state(button, LV_STATE_DISABLED);
-    }
-    lv_obj_set_style_bg_color(button, color, LV_PART_MAIN); // Update button color
-    lv_label_set_text(ui_LabelWifi1, labelText); // Assuming `ui_LabelWifi1` is the label object
-}
-
 
 void updateDeviceButtonState(bool state, int index) {
     if (state) {
@@ -266,7 +252,6 @@ void updateDeviceButtonState(bool state, int index) {
       lv_label_set_text(devices[index].uiState, "State: OFF");
     }
 }
-
 
 void OnOffDevice(bool is_on, int index) {
     int x;
@@ -317,7 +302,6 @@ void controlDevice(DeviceState &device ) {
     sensorReadState = INIT_SENSOR_READ;
 }
 
-
 bool isProcessing =false;
 int startTime;
 int targetEC, mixTime;
@@ -329,7 +313,7 @@ void calculateAB(lv_event_t * e)
     int inputValue = atoi(text);
     int result = inputValue * ml;
     
-    char resultStr[16]; // Ensure enough space for the integer
+    char resultStr[16];
     dtostrf(result, 6, 0, resultStr);
    
     lv_label_set_text_fmt(ui_doseA, resultStr);
@@ -360,8 +344,6 @@ void startManualNutrient(lv_event_t * e) {
         OnOffDevice(false, 2);
     }
 }
-
-
 
 void setup()
 {
