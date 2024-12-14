@@ -218,9 +218,9 @@ void readSensorNonBlocking() {
             break;
         case CHECK_DATA:
             bytesRead = 0;
-            dtostrf(tp, 6, 0, tempStr3);
-            dtostrf(ec, 6, 0, tempStr4);
-            dtostrf(ph, 6, 2, tempStr5);
+            dtostrf(tp2, 6, 0, tempStr3);
+            dtostrf(ec2, 6, 0, tempStr4);
+            dtostrf(ph2, 6, 2, tempStr5);
             if(ec2!=ec || ph2!=ph || tp2!= tp){
                 ec=ec2;
                 ph=ph2;
