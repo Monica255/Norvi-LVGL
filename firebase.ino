@@ -118,15 +118,19 @@ void fetchControllingDataNonBlocking() {
             for (size_t index = 0; index < devices.size(); ++index) {
                 auto &device = devices[index];
                 bool gpioState = readGPIOState(device.pin);
-
-                if (device.firebase_state) {
-                    lv_obj_add_state(device.uiButton, LV_STATE_CHECKED); 
-                } else {
-                    lv_obj_clear_state(device.uiButton, LV_STATE_CHECKED); 
-                }
-
+                // if (device.firebase_state) {
+                //     lv_obj_add_state(device.uiButton, LV_STATE_CHECKED); 
+                // } else {
+                //     lv_obj_clear_state(device.uiButton, LV_STATE_CHECKED); 
+                // }
+                
                 if (gpioState != device.firebase_state) {
                     if (device.tempState == -1) {
+                        if (device.firebase_state) {
+                            updateDeviceButtonState(true, index);
+                        } else {
+                            updateDeviceButtonState(false, index); 
+                        }
                         controlDevice(device);
                     } else {
                         updateFirebaseDeviceState(index, device.tempState);

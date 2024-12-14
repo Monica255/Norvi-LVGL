@@ -59,7 +59,9 @@ struct DeviceState {
     int firebase_state; 
     int tempState;      // Previous device state (replaces LED variables)
     uint16_t coil;        // Coil address for Modbus communication
-    lv_obj_t *uiButton;   // UI button to control the device
+    lv_obj_t *uiButton;
+    lv_obj_t *uiLable;
+    lv_obj_t *uiState;   // UI button to control the device
     const char *path;     // Firebase JSON path
 };
 std::vector<DeviceState> devices;
@@ -253,15 +255,28 @@ void updateWiFiButtonState(bool enable, lv_color_t color, const char *labelText)
 }
 
 
+void updateDeviceButtonState(bool state, int index) {
+    if (state) {
+      lv_obj_add_state(devices[index].uiButton, LV_STATE_CHECKED);
+      lv_label_set_text(devices[index].uiLable, "OFF");
+      lv_label_set_text(devices[index].uiState, "State: ON");
+    } else {
+      lv_obj_clear_state(devices[index].uiButton, LV_STATE_CHECKED);
+      lv_label_set_text(devices[index].uiLable, "ON");
+      lv_label_set_text(devices[index].uiState, "State: OFF");
+    }
+}
+
+
 void OnOffDevice(bool is_on, int index) {
     int x;
     if (is_on) {
         Serial.printf("%s is ON\n", devices[index].path);
-        lv_obj_add_state(devices[index].uiButton, LV_STATE_CHECKED); 
+        updateDeviceButtonState(true, index);
         x = 1;
     } else {
         Serial.printf("%s is OFF\n", devices[index].path);
-        lv_obj_clear_state(devices[index].uiButton, LV_STATE_CHECKED); 
+        updateDeviceButtonState(false, index);
         x = 0;
     }
     sensorReadState = IDLE2;
@@ -298,7 +313,6 @@ void controlDevice(DeviceState &device ) {
     sensorReadState = IDLE2;
     writeOutput(device.pin, device.firebase_state);
     result = node.writeSingleCoil(device.coil, device.firebase_state);
-
     Serial.printf("Controlling device on GPIO %d: %d\n", device.pin, device.firebase_state);
     sensorReadState = INIT_SENSOR_READ;
 }
@@ -411,10 +425,10 @@ void setup()
   lcd->fillScreen(BLUE);
   delay(800);
 #endif
-  devices.push_back({GPIO8, 0, -1, 0x00001, ui_ButtonONOFF1, "pompa_1/state"});
-  devices.push_back({GPIO7, 0, -1, 0x00002, ui_ButtonONOFF2, "pompa_2/state"});
-  devices.push_back({GPIO6, 0, -1, 0x00003, ui_ButtonONOFF3, "pompa_3/state"});
-  devices.push_back({GPIO5, 0, -1, 0x00004, ui_ButtonONOFF4, "exhaust_fan_1/state"});
+  devices.push_back({GPIO8, 0, -1, 0x00001, ui_ButtonONOFF1,ui_LabelON1 ,ui_LabelStateOFFPompa1 ,"pompa_1/state"});
+  devices.push_back({GPIO7, 0, -1, 0x00002, ui_ButtonONOFF2,ui_LabelON2 ,ui_LabelStateOFFPompa2 , "pompa_2/state"});
+  devices.push_back({GPIO6, 0, -1, 0x00003, ui_ButtonONOFF3,ui_LabelON3 ,ui_LabelStateOFFPompa3 , "pompa_3/state"});
+  devices.push_back({GPIO5, 0, -1, 0x00004, ui_ButtonONOFF4,ui_LabelON4 ,ui_LabelStateOFFExh , "exhaust_fan_1/state"});
   // Serial.println( "Setup done" );
   Wire.begin(SDA, SCL);
 
